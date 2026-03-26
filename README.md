@@ -1,3 +1,5 @@
+> **⚠️ Archived:** This project is no longer actively maintained. I've moved on to other tools and workflows. Feel free to fork and use this project as you see fit!
+
 # Overseer
 
 Task orchestration for AI agents via MCP. SQLite-backed, native VCS (jj-lib + gix).
