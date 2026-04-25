@@ -10,16 +10,8 @@ platform_tarball := `node npm/scripts/local-package-meta.mjs platformTarball`
 npm_prefix := `node npm/scripts/local-package-meta.mjs npmPrefix`
 installed_os := `node npm/scripts/local-package-meta.mjs installedOs`
 
-help:
-  @printf '%s\n' \
-    'just platform-info' \
-    'just build' \
-    'just pack' \
-    'just install-global' \
-    'just reinstall-global' \
-    'just smoke-global' \
-    'just clean-pack' \
-    'just uninstall-global'
+default:
+  just --list
 
 platform-info:
   @printf '%s\n' \
