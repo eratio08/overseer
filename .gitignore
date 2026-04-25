@@ -38,6 +38,7 @@ ui-test-*.png
 npm/overseer-darwin-*/
 npm/overseer-linux-*/
 npm/overseer-win32-*/
+npm/overseer/*.tgz
 npm/overseer/dist/
 
 .agents/

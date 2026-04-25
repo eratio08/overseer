@@ -9,7 +9,7 @@ Task orchestration for AI agents via MCP. SQLite-backed, native VCS (jj-lib + gi
 ### Via npm
 
 ```bash
-npm install -g @dmmulroy/overseer
+npm install -g @eratio08/overseer
 ```
 
 ### Via skills.sh (for agents)
@@ -29,7 +29,7 @@ Add to your MCP client config:
   "mcpServers": {
     "overseer": {
       "command": "npx",
-      "args": ["@dmmulroy/overseer", "mcp"]
+      "args": ["@eratio08/overseer", "mcp"]
     }
   }
 }
@@ -43,6 +43,30 @@ os task list --ready
 os task start <task-id>
 os task complete <task-id>
 ```
+
+### Local npm build and install
+
+Prerequisites: `just`, `node`, `npm`, `cargo`
+
+```bash
+just platform-info
+just pack
+just reinstall-global
+just smoke-global
+```
+
+Useful cleanup:
+
+```bash
+just clean-pack
+just uninstall-global
+```
+
+`justfile` auto-detects the current platform and Rust target using `npm/scripts/platforms.json`.
+
+Use `just install-global` for a first install.
+
+Use `just reinstall-global` if you already have a global `os` binary installed.
 
 ## Architecture
 
@@ -149,13 +173,15 @@ const subtask = await tasks.get(subtaskId);
 
 ```bash
 # Tasks
-os task create -d "description" [--context "..."] [--parent ID] [--priority 1-5]
+os task create -d "description" [--context "..."] [--parent ID] [--priority 0-2]
 os task get <id>
 os task list [--parent ID] [--ready] [--completed]
 os task update <id> [-d "..."] [--context "..."] [--priority N] [--parent ID]
 os task start <id>
 os task complete <id> [--result "..."] [--learning "..."]...
 os task reopen <id>
+os task cancel <id>
+os task archive <id>
 os task delete <id>
 os task block <id> --by <blocker-id>
 os task unblock <id> --by <blocker-id>
@@ -166,14 +192,6 @@ os task progress [ID]       # Aggregate counts: total, completed, ready, blocked
 
 # Learnings (added via task complete --learning)
 os learning list <task-id>
-
-# VCS (CLI only - automatic in MCP)
-os vcs detect
-os vcs status
-os vcs log [--limit N]
-os vcs diff [BASE_REV]
-os vcs commit -m "message"
-os vcs cleanup [--delete]  # List/delete orphaned task branches
 
 # Data
 os data export [-o file.json]
@@ -188,8 +206,8 @@ Web UI for viewing tasks:
 os ui
 
 # Or from repo (development)
-cd ui && npm install && npm run dev
-# Opens http://localhost:5173
+cd ui && npm ci && npm run dev
+# Starts the API server and Vite dev server
 ```
 
 Three views:
@@ -206,13 +224,15 @@ Keyboard: `g`=graph, `l`=list, `k`=kanban, `?`=help
 cd overseer && cargo build --release
 cd overseer && cargo test
 
-# Node MCP
-cd mcp && npm install
-cd mcp && npm run build
-cd mcp && npm test
+# Node host
+cd host && npm ci
+cd host && npm run build
 
 # UI (dev server)
-cd ui && npm install && npm run dev
+cd ui && npm ci && npm run dev
+
+# Assemble npm package after building host + UI
+node npm/scripts/build-npm-package.mjs
 ```
 
 ## Storage
