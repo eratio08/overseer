@@ -1,6 +1,6 @@
 # Design Analysis: Inspiration Images
 
-**Source**: `docs/inspiration/best/`  
+**Source**: `docs/inspiration/best/`
 **Date**: 2026-02-03
 
 ---

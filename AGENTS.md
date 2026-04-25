@@ -1,7 +1,7 @@
 # OVERSEER PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-02-01  
-**Commit:** 829fb09  
+**Generated:** 2026-02-01
+**Commit:** 829fb09
 **JJ Change:** mptvnovo
 
 **Overseer** (`os`) - Codemode MCP server for agent task management. SQLite-backed, native VCS (jj-lib + gix). JJ-first.

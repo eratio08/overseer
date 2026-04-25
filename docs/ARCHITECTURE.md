@@ -8,7 +8,7 @@ System design, data model, and invariants for Overseer.
 
 Overseer is a SQLite-backed task graph manager with:
 - **Rust CLI** (`os`) as source of truth for all business logic
-- **Node MCP server** providing codemode interface for agents  
+- **Node MCP server** providing codemode interface for agents
 - **Web UI** for visual task inspection
 - **VCS integration** (jj-first) for workflow operations
 

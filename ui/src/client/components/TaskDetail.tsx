@@ -67,7 +67,7 @@ const editField = tv({
 
 /**
  * Task detail panel with industrial styling and keyboard shortcuts.
- * 
+ *
  * Keyboard: e=edit, c=complete (if unblocked), Backspace=delete (with confirm)
  */
 export function TaskDetail({ task, onDeleted }: TaskDetailProps) {

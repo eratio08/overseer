@@ -1,8 +1,8 @@
 # CLI DX/UX Improvements
 
-**Status:** Ready for implementation  
-**Effort:** L (1-2 days)  
-**Author:** spec-planner  
+**Status:** Ready for implementation
+**Effort:** L (1-2 days)
+**Author:** spec-planner
 **Date:** 2026-02-01
 
 ## Problem

@@ -75,8 +75,8 @@ export const tasks = {
    */
   async list(filter?: TaskFilter): Promise<Task[]> {
     // Resolve type to depth if provided
-    const effectiveDepth = filter?.type !== undefined 
-      ? TYPE_TO_DEPTH[filter.type] 
+    const effectiveDepth = filter?.type !== undefined
+      ? TYPE_TO_DEPTH[filter.type]
       : filter?.depth;
 
     if (filter?.parentId !== undefined && effectiveDepth !== undefined) {

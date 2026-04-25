@@ -195,7 +195,7 @@ function getDescendantIds(
  * Build nodes and edges from tasks, respecting collapsed state.
  * NOTE: focusedId and onToggleCollapse are applied separately to avoid
  * expensive dagre re-layout on every focus change.
- * 
+ *
  * externalBlockers: Tasks referenced in blockedBy but not in visible set (for filtered views)
  */
 function buildGraphElements(
@@ -541,7 +541,7 @@ const TaskNodeComponent = memo(function TaskNodeComponent({
             {hasChildren && !isCollapsed && (
               <div className="flex items-center gap-2">
                 <div className="w-16 h-2 bg-surface-secondary rounded-full overflow-hidden">
-                  <div 
+                  <div
                     aria-hidden="true"
                     className="h-full bg-accent transition-all duration-300 motion-reduce:transition-none"
                     style={{ width: `${childCount > 0 ? (completedChildCount / childCount) * 100 : 0}%` }}

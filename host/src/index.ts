@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Overseer Host - Unified entry point for MCP and UI servers
- * 
+ *
  * Usage:
  *   overseer-host mcp --cli-path /path/to/os --cwd /path/to/repo
  *   overseer-host ui --cli-path /path/to/os --cwd /path/to/repo --static-root /path/to/dist --port 6969
@@ -21,7 +21,7 @@ interface Args {
 
 function parseArgs(argv: string[]): Args {
   const args = argv.slice(2); // Skip node and script
-  
+
   if (args.length === 0) {
     printUsage();
     process.exit(1);

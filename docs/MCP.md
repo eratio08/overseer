@@ -31,9 +31,9 @@ return task;
 
 Single tool that runs JavaScript in VM sandbox with `tasks` and `learnings` APIs.
 
-**Input:** `code` parameter (JavaScript string)  
-**Output:** Return value from code execution  
-**Timeout:** 30 seconds  
+**Input:** `code` parameter (JavaScript string)
+**Output:** Return value from code execution
+**Timeout:** 30 seconds
 **Truncation:** Outputs >50,000 chars truncated with preview
 
 ## Type Definitions
@@ -193,7 +193,7 @@ const loginTask = await tasks.create({
 });
 
 const signupTask = await tasks.create({
-  description: "Add signup endpoint", 
+  description: "Add signup endpoint",
   parentId: milestone.id,
   priority: 1,  // p1 = default
   blockedBy: [loginTask.id]  // Blocked until login done
@@ -238,7 +238,7 @@ const subtask = await tasks.get(subtaskId);
 
 // subtask.context contains:
 // - own: subtask's context
-// - parent: parent task's context  
+// - parent: parent task's context
 // - milestone: root milestone's context
 
 // subtask.learnings contains:
@@ -398,7 +398,7 @@ const milestone = await tasks.create({
 
 const subtasks = [
   "Add login endpoint",
-  "Add signup endpoint", 
+  "Add signup endpoint",
   "Add token refresh",
   "Add password reset"
 ];

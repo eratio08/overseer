@@ -16,11 +16,11 @@ mkdir -p "$(dirname "$OUTPUT_FILE")"
 cat > "$OUTPUT_FILE" << 'EOF'
 /**
  * AUTO-GENERATED TypeScript types from Rust source of truth.
- * 
+ *
  * Source: overseer/src/types.rs, overseer/src/id.rs, overseer/src/db/learning_repo.rs
- * 
+ *
  * DO NOT EDIT - regenerate with: ./scripts/generate-types.sh
- * 
+ *
  * Compare against:
  * - mcp/src/types.ts
  * - ui/src/types.ts

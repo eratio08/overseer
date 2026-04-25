@@ -104,9 +104,9 @@ export function decodeLearnings(v: unknown): Result<Learning[], DecodeError> {
   for (let i = 0; i < v.length; i++) {
     const result = decodeLearning(v[i]);
     if (result.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: result.error.message, 
-        path: `learnings[${i}]` 
+      return Result.err(new DecodeError({
+        message: result.error.message,
+        path: `learnings[${i}]`
       }));
     }
     learnings.push(result.value);
@@ -276,9 +276,9 @@ export function decodeTasks(v: unknown): Result<Task[], DecodeError> {
   for (let i = 0; i < v.length; i++) {
     const result = decodeTask(v[i]);
     if (result.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: result.error.message, 
-        path: `tasks[${i}]` 
+      return Result.err(new DecodeError({
+        message: result.error.message,
+        path: `tasks[${i}]`
       }));
     }
     tasks.push(result.value);

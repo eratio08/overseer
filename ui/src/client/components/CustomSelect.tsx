@@ -15,12 +15,12 @@ interface CustomSelectProps {
   disabled?: boolean;
 }
 
-export function CustomSelect({ 
-  options, 
-  value, 
-  onChange, 
+export function CustomSelect({
+  options,
+  value,
+  onChange,
   placeholder = 'Select...',
-  disabled = false 
+  disabled = false
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -35,7 +35,7 @@ export function CustomSelect({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setHighlightedIndex(prev => 
+          setHighlightedIndex(prev =>
             prev < options.length - 1 ? prev + 1 : prev
           );
           break;
@@ -84,7 +84,7 @@ export function CustomSelect({
   }, [isOpen, value, options]);
 
   return (
-    <div 
+    <div
       className={`custom-select ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
       ref={containerRef}
     >
@@ -108,7 +108,7 @@ export function CustomSelect({
       </button>
 
       {isOpen && (
-        <ul 
+        <ul
           className="custom-select__dropdown"
           role="listbox"
           aria-label="Options"

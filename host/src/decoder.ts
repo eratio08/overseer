@@ -104,9 +104,9 @@ export function decodeLearnings(v: unknown): Result<Learning[], DecodeError> {
   for (let i = 0; i < v.length; i++) {
     const result = decodeLearning(v[i]);
     if (result.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: result.error.message, 
-        path: `learnings[${i}]` 
+      return Result.err(new DecodeError({
+        message: result.error.message,
+        path: `learnings[${i}]`
       }));
     }
     learnings.push(result.value);
@@ -276,9 +276,9 @@ export function decodeTasks(v: unknown): Result<Task[], DecodeError> {
   for (let i = 0; i < v.length; i++) {
     const result = decodeTask(v[i]);
     if (result.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: result.error.message, 
-        path: `tasks[${i}]` 
+      return Result.err(new DecodeError({
+        message: result.error.message,
+        path: `tasks[${i}]`
       }));
     }
     tasks.push(result.value);
@@ -410,9 +410,9 @@ export function decodeTaskTree(v: unknown): Result<TaskTree, DecodeError> {
   for (let i = 0; i < children.length; i++) {
     const childResult = decodeTaskTree(children[i]);
     if (childResult.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: childResult.error.message, 
-        path: `children[${i}]` 
+      return Result.err(new DecodeError({
+        message: childResult.error.message,
+        path: `children[${i}]`
       }));
     }
     decodedChildren.push(childResult.value);
@@ -436,9 +436,9 @@ export function decodeTaskTrees(v: unknown): Result<TaskTree[], DecodeError> {
   for (let i = 0; i < v.length; i++) {
     const result = decodeTaskTree(v[i]);
     if (result.isErr()) {
-      return Result.err(new DecodeError({ 
-        message: result.error.message, 
-        path: `trees[${i}]` 
+      return Result.err(new DecodeError({
+        message: result.error.message,
+        path: `trees[${i}]`
       }));
     }
     trees.push(result.value);

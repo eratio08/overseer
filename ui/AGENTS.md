@@ -214,7 +214,7 @@ Tailwind v4 CSS-first config in `global.css`. **Neo-Industrial / Technical Bruta
 ## NOTES
 
 - Types in `src/types.ts` must mirror `mcp/src/types.ts`
-- CLI bridge spawns `os --json <command>` 
+- CLI bridge spawns `os --json <command>`
 - Vite proxies `/api/*` to Hono in dev mode
 - Production: Hono serves `dist/` static files
 - **Code review pattern**: 3 parallel review agents + Oracle deep review catches bugs single reviewers miss (repeatedly proven during UI Feedback Fixes milestone)

@@ -649,8 +649,8 @@ When fetching task with `get` or `next-ready`, the response is **flat** (task fi
 }
 ```
 
-**Depth 0 (Milestone):** Only `own` context  
-**Depth 1 (Task):** `own` + `milestone` context, `milestone` learnings  
+**Depth 0 (Milestone):** Only `own` context
+**Depth 1 (Task):** `own` + `milestone` context, `milestone` learnings
 **Depth 2 (Subtask):** All context + all learnings
 
 ## Error Handling

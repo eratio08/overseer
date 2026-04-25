@@ -1,27 +1,27 @@
 # Task Archival & Cancellation Spec
 
-**Status:** Ready for implementation  
-**Effort:** L (2-3 days, ~26 hours)  
-**Type:** Feature plan  
-**Date:** 2026-02-03  
+**Status:** Ready for implementation
+**Effort:** L (2-3 days, ~26 hours)
+**Type:** Feature plan
+**Date:** 2026-02-03
 **Updated:** 2026-02-03 (added lifecycle enum formalization)
 
 ---
 
 ## Problem Definition
 
-**What are we solving?**  
+**What are we solving?**
 Completed tasks accumulate in the active dataset, polluting queries, UI views, and progress calculations. Users need a way to:
 1. Remove completed work from active views without losing data
 2. Mark abandoned work as cancelled (distinct from deletion)
 3. Prepare for future auto-archival (7-day age-off deferred to later iteration)
 
-**For whom?**  
+**For whom?**
 - **Agents/users** working with long-lived projects where completed work becomes noise
 - **UI users** who want cleaner task lists focused on active work
 - **Progress tracking** that reflects current work, not historical artifacts
 
-**Cost of not solving?**  
+**Cost of not solving?**
 - `os task list` returns 100s of completed tasks, obscuring active work
 - UI performance degrades with large datasets
 - Milestone progress calculations include tasks from months ago
@@ -161,22 +161,22 @@ impl Task {
             LifecycleState::Pending
         }
     }
-    
+
     /// Task is active for work (not finished or archived)
     pub fn is_active_for_work(&self) -> bool {
         matches!(self.lifecycle_state(), LifecycleState::Pending | LifecycleState::InProgress)
     }
-    
+
     /// Task is finished for hierarchy (completed OR cancelled, but not archived check)
     pub fn is_finished_for_hierarchy(&self) -> bool {
         self.completed || self.cancelled
     }
-    
+
     /// Task satisfies blocker (only completed, not cancelled)
     pub fn satisfies_blocker(&self) -> bool {
         self.completed && !self.cancelled && !self.archived
     }
-    
+
     /// Validate lifecycle invariants (call at DB hydrate in debug/tests)
     #[cfg(debug_assertions)]
     pub fn validate_lifecycle_invariants(&self) -> Result<(), String> {
@@ -210,7 +210,7 @@ impl Task {
 impl TaskService {
     pub fn cancel(&self, id: &TaskId) -> Result<Task> {
         let task = self.get_task_or_err(id)?;
-        
+
         // Validate transition
         match task.lifecycle_state() {
             LifecycleState::Completed => return Err(OsError::CannotCancelCompleted(id.clone())),
@@ -224,10 +224,10 @@ impl TaskService {
             }
         }
     }
-    
+
     pub fn archive(&self, id: &TaskId) -> Result<Task> {
         let task = self.get_task_or_err(id)?;
-        
+
         // Validate transition
         match task.lifecycle_state() {
             LifecycleState::Archived => return Err(OsError::AlreadyArchived(id.clone())),
@@ -474,8 +474,8 @@ tasks.list({ archived: false })
 
 **Header component** (add toggle next to milestone filter):
 ```tsx
-<Toggle 
-  checked={showArchived} 
+<Toggle
+  checked={showArchived}
   onChange={setShowArchived}
   label="Show archived"
 />
@@ -680,5 +680,5 @@ function getStatusVariant(task: Task) {
 
 ---
 
-**Spec approved:** 2026-02-03  
+**Spec approved:** 2026-02-03
 **Ready for implementation**

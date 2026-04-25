@@ -333,7 +333,7 @@ export function TaskList({
             onClick={() => setFilter(type)}
             aria-pressed={filter === type}
             className={`
-              px-2 py-1 text-xs font-mono uppercase tracking-wider rounded 
+              px-2 py-1 text-xs font-mono uppercase tracking-wider rounded
               transition-colors motion-reduce:transition-none
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary
               ${
@@ -460,7 +460,7 @@ function TaskTreeNode({
   const isChanged = changedTaskIds.has(task.id);
   const hasChildren = children.length > 0;
   const isCollapsed = collapsedIds.has(task.id);
-  
+
   // Tree line config for CSS-based rendering
   const treeLineConfig: TreeLineConfig = {
     verticalLines: ancestorHasMore,
@@ -599,7 +599,7 @@ function TaskItem({
     >
       {/* CSS-based tree lines - positioned absolutely to span full row height */}
       {depth > 0 && (
-        <div 
+        <div
           className="absolute left-2 top-0 bottom-0 pointer-events-none"
           style={{ width: treeWidth + BRANCH_OFFSET }}
           aria-hidden="true"

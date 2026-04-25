@@ -1,6 +1,6 @@
 # Overseer v2 Architecture
 
-**Status:** Draft  
+**Status:** Draft
 **Date:** 2026-02-04
 
 ## Vision
@@ -190,13 +190,13 @@ impl Tasks {
     pub fn create(&self, input: CreateTaskInput) -> Result<Task> {
         // Validation
         self.validate_create(&input)?;
-        
+
         // Persist
         let task = self.db.tasks().insert(&input)?;
-        
+
         // Emit event
         self.events.emit(TaskEvent::Created { task: task.clone() });
-        
+
         Ok(task)
     }
 }
@@ -286,7 +286,7 @@ To avoid impacting the main working directory during reviews:
 // On task start (if configured)
 overseer::tasks::start(task_id) {
     let task_vcs = self.db.task_vcs().get(task_id)?;
-    
+
     // Create isolated worktree for this task
     let worktree_path = match self.vcs.backend() {
         VcsType::Jj => {
@@ -298,7 +298,7 @@ overseer::tasks::start(task_id) {
             self.vcs.git().create_worktree(&task_vcs.ref_name)?
         }
     };
-    
+
     self.db.task_vcs().set_worktree_path(task_id, &worktree_path)?;
 }
 ```
@@ -427,27 +427,27 @@ pub enum EventBody {
     TaskRejected { task: Task, review_id: ReviewId, reason: Option<String> },
     TaskCompleted { task: Task },
     TaskCancelled { task: Task },
-    
+
     // Reviews
     ReviewCreated { review: Review },
     CommentAdded { comment: Comment },
     ChangesRequested { review: Review, comments: Vec<Comment> },
-    
+
     // VCS
     RefCreated { task_id: TaskId, ref_name: String, target: String },
     Committed { task_id: TaskId, rev: String },
-    
+
     // Harnesses
     HarnessConnected { harness_id: String },
     HarnessDisconnected { harness_id: String },
     SessionStarted { session_id: String, task_id: TaskId, harness_id: String },
     SessionProgress { session_id: String, message: String },
     SessionCompleted { session_id: String },
-    
+
     // Blockers
     BlockerAdded { task_id: TaskId, blocker_id: TaskId },
     BlockerRemoved { task_id: TaskId, blocker_id: TaskId },
-    
+
     // Learnings
     LearningAdded { learning: Learning },
     LearningBubbled { from: TaskId, to: TaskId, learning_ids: Vec<LearningId> },
@@ -519,26 +519,26 @@ pub struct JsExecutor {
 impl JsExecutor {
     pub fn new(overseer: Arc<Overseer>) -> Result<Self> {
         let mut context = Context::default();
-        
+
         // Register tasks API
         let tasks = Self::create_tasks_api(&overseer, &mut context)?;
         context.register_global_property(js_string!("tasks"), tasks, Attribute::default())?;
-        
+
         // Register reviews API
         let reviews = Self::create_reviews_api(&overseer, &mut context)?;
         context.register_global_property(js_string!("reviews"), reviews, Attribute::default())?;
-        
+
         // Register learnings API
         let learnings = Self::create_learnings_api(&overseer, &mut context)?;
         context.register_global_property(js_string!("learnings"), learnings, Attribute::default())?;
-        
+
         Ok(Self { context, overseer })
     }
-    
+
     fn create_tasks_api(overseer: &Arc<Overseer>, ctx: &mut Context) -> Result<JsObject> {
         let tasks = JsObject::default();
         let os = overseer.clone();
-        
+
         // tasks.create()
         tasks.create_data_property(
             js_string!("create"),
@@ -552,13 +552,13 @@ impl JsExecutor {
             }).to_js_function(ctx.realm()),
             ctx
         )?;
-        
+
         // tasks.list(), tasks.get(), tasks.start(), etc.
         // ...
-        
+
         Ok(tasks)
     }
-    
+
     pub async fn execute(&mut self, code: &str) -> Result<JsValue> {
         let wrapped = format!("(async () => {{ {} }})()", code);
         self.context.eval(Source::from_bytes(&wrapped))
@@ -586,19 +586,19 @@ pub struct RelayServer {
 impl RelayServer {
     pub async fn run(&self, addr: &str) -> Result<()> {
         let listener = TcpListener::bind(addr).await?;
-        
+
         while let Ok((stream, _)) = listener.accept().await {
             let ws = accept_async(stream).await?;
             let relay = self.clone();
-            
+
             tokio::spawn(async move {
                 relay.handle_connection(ws).await
             });
         }
-        
+
         Ok(())
     }
-    
+
     async fn handle_connection(&self, ws: WebSocketStream) {
         // Determine if this is a harness provider or UI client
         // Route messages accordingly
@@ -613,11 +613,11 @@ pub enum RelayMessage {
     RegisterHandler { agent_id: String },
     AgentStatus { session_id: String, message: String },
     AgentDone { session_id: String, result: Option<String> },
-    
+
     // From UI/clients
     TaskRequest { task_id: TaskId, agent_id: String },
     TaskAbort { session_id: String },
-    
+
     // Review feedback (bidirectional)
     ReviewComment { task_id: TaskId, comment: Comment },
     ReviewSubmitted { task_id: TaskId, status: ReviewStatus },

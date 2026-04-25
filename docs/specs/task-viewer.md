@@ -1,8 +1,8 @@
 # Overseer Task Viewer — Feature Spec
 
-**Status:** In Progress  
-**Effort:** M-L (2-3 days remaining)  
-**Created:** 2026-01-28  
+**Status:** In Progress
+**Effort:** M-L (2-3 days remaining)
+**Created:** 2026-01-28
 **Updated:** 2026-01-31
 
 ---
@@ -266,8 +266,8 @@ type DeleteLearningResponse = { deleted: true }
 
 ### D1: CLI `os ui` Command
 
-**Effort:** M  
-**Files:** `overseer/src/commands/ui.rs`, `overseer/src/main.rs`  
+**Effort:** M
+**Files:** `overseer/src/commands/ui.rs`, `overseer/src/main.rs`
 **Status:** 70% - args/spawn done, ready detection broken
 
 **Behavior:**
@@ -301,8 +301,8 @@ os ui --port 8080  # Custom port
 
 ### D2: Hono API Server
 
-**Effort:** M  
-**Files:** `ui/src/api/`  
+**Effort:** M
+**Files:** `ui/src/api/`
 **Status:** 10% - skeleton only
 
 **Implementation:**
@@ -334,8 +334,8 @@ os ui --port 8080  # Custom port
 
 ### D3: Vite + React Frontend Shell
 
-**Effort:** M  
-**Files:** `ui/src/client/`  
+**Effort:** M
+**Files:** `ui/src/client/`
 **Status:** Not started
 
 **Structure:**
@@ -370,7 +370,7 @@ ui/src/client/
 
 ### D4: Task List View
 
-**Effort:** M  
+**Effort:** M
 **Component:** `TaskList.tsx`
 
 **Features:**
@@ -390,7 +390,7 @@ ui/src/client/
 
 ### D5: Dependency Graph View
 
-**Effort:** L  
+**Effort:** L
 **Component:** `TaskGraph.tsx`
 
 **Features:**
@@ -424,7 +424,7 @@ ui/src/client/
 
 ### D6: Task Detail Panel
 
-**Effort:** M  
+**Effort:** M
 **Component:** `TaskDetail.tsx`
 
 **Features:**
@@ -446,7 +446,7 @@ ui/src/client/
 
 ### D7: Visual Theme
 
-**Effort:** M  
+**Effort:** M
 **Files:** `ui/src/client/styles/`, `ui/tailwind.config.ts`
 
 **Aesthetic:**

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Unified CLI entry point
- * 
+ *
  * Delegates all commands to the native binary.
  * The native binary handles spawning Node for `ui` and `mcp` commands.
  */

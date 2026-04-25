@@ -1,8 +1,8 @@
 # Overseer UI Redesign Spec
 
-**Created:** 2026-01-31  
-**Type:** Feature Plan  
-**Effort:** XL (5-8 days)  
+**Created:** 2026-01-31
+**Type:** Feature Plan
+**Effort:** XL (5-8 days)
 **Status:** Ready for implementation
 
 ---
@@ -47,9 +47,9 @@ Developers monitoring/debugging AI agent task execution in local dev environment
 
 Drawing from inspiration images (`docs/inspiration/04-aesthetic-02.png`, `05-aesthetic-03.png`, `10-aesthetic-08.png`):
 
-**Tone:** Operational command center - like monitoring nuclear reactors or air traffic control  
-**Typography:** Monospace-dominant with technical labels  
-**Color:** High contrast dark + single vibrant accent (orange)  
+**Tone:** Operational command center - like monitoring nuclear reactors or air traffic control
+**Typography:** Monospace-dominant with technical labels
+**Color:** High contrast dark + single vibrant accent (orange)
 **Interaction:** Precise, immediate feedback - no gratuitous animation
 
 ### Design Tokens
@@ -61,28 +61,28 @@ Drawing from inspiration images (`docs/inspiration/04-aesthetic-02.png`, `05-aes
   --color-bg-secondary: oklch(0.16 0 0);    /* Panel background */
   --color-surface-primary: oklch(0.18 0 0); /* Cards, inputs */
   --color-surface-secondary: oklch(0.22 0 0);
-  
+
   /* Text */
   --color-text-primary: oklch(0.9 0 0);     /* High contrast */
   --color-text-muted: oklch(0.55 0 0);
   --color-text-dim: oklch(0.4 0 0);
-  
+
   /* Accent */
   --color-accent: oklch(0.7 0.18 45);       /* Warm orange */
   --color-accent-muted: oklch(0.5 0.12 45);
   --color-accent-subtle: oklch(0.3 0.08 45);
-  
+
   /* Status (semantic) */
   --color-status-pending: oklch(0.55 0 0);    /* Neutral gray */
   --color-status-active: oklch(0.7 0.18 45);  /* Orange - pulsing */
   --color-status-blocked: oklch(0.65 0.2 25); /* Red-orange */
   --color-status-done: oklch(0.65 0.12 145);  /* Teal-green */
-  
+
   /* Borders */
   --color-border: oklch(0.28 0 0);
   --color-border-hover: oklch(0.35 0 0);
   --color-border-focus: var(--color-accent);
-  
+
   /* Typography - fully monospace */
   --font-display: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
   --font-body: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
@@ -100,7 +100,7 @@ Drawing from inspiration images (`docs/inspiration/04-aesthetic-02.png`, `05-aes
 
 2. **Grid Background**: Subtle dot pattern (existing, refine)
 
-3. **Status Indicators**: 
+3. **Status Indicators**:
    - Pending: Static dot
    - Active: Pulsing dot (CSS animation)
    - Blocked: Static dot + dashed border
@@ -252,19 +252,19 @@ interface UIStore {
   // View
   viewMode: 'graph' | 'kanban' | 'list';
   setViewMode: (mode: ViewMode) => void;
-  
+
   // Selection
   selectedTaskId: TaskId | null;
   setSelectedTaskId: (id: TaskId | null) => void;
-  
+
   // Graph state
   collapsedNodes: Set<TaskId>;
   toggleCollapsed: (id: TaskId) => void;
-  
+
   // Detail panel
   detailPanelOpen: boolean;
   toggleDetailPanel: () => void;
-  
+
   // Keyboard focus
   focusedTaskId: TaskId | null;
   setFocusedTaskId: (id: TaskId | null) => void;

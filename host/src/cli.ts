@@ -1,6 +1,6 @@
 /**
  * CLI bridge - spawns `os` binary and parses JSON output
- * 
+ *
  * Configuration is passed via constructor, not environment variables.
  * This allows the Rust CLI to set paths correctly when spawning.
  */

@@ -56,9 +56,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived);
             CREATE INDEX IF NOT EXISTS idx_learnings_task ON learnings(task_id);
             CREATE INDEX IF NOT EXISTS idx_blockers_blocker ON task_blockers(blocker_id);
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_learnings_unique 
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_learnings_unique
                 ON learnings(task_id, source_task_id, content);
-            CREATE INDEX IF NOT EXISTS idx_learnings_task_created 
+            CREATE INDEX IF NOT EXISTS idx_learnings_task_created
                 ON learnings(task_id, created_at);
 
             PRAGMA journal_mode = WAL;
@@ -93,9 +93,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             r#"
             BEGIN;
             UPDATE learnings SET source_task_id = task_id WHERE source_task_id IS NULL;
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_learnings_unique 
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_learnings_unique
                 ON learnings(task_id, source_task_id, content);
-            CREATE INDEX IF NOT EXISTS idx_learnings_task_created 
+            CREATE INDEX IF NOT EXISTS idx_learnings_task_created
                 ON learnings(task_id, created_at);
             COMMIT;
             "#,

@@ -74,7 +74,7 @@ if (command === "ui") {
   process.env.PORT = port;
   process.env.NODE_ENV = "production";
   process.env.OVERSEER_CLI_PATH = getBinaryPath();
-  
+
   const serverPath = join(__dirname, "..", "dist", "ui", "server.js");
   import(serverPath);
 }
@@ -109,7 +109,7 @@ if (command === "ui") {
 
 **Modify:** GitHub Actions workflow to:
 1. Build Rust CLI (existing)
-2. Build MCP (existing)  
+2. Build MCP (existing)
 3. Build UI: `cd ui && npm run build:prod`
 4. Assemble npm package
 

@@ -1,7 +1,7 @@
 # UI Feedback Fixes Spec
 
-**Created:** 2026-02-01  
-**Status:** Draft  
+**Created:** 2026-02-01
+**Status:** Draft
 **Author:** Agent (Oracle-reviewed)
 
 ## Overview
@@ -151,8 +151,8 @@ const lastUpdated = dataUpdatedAt
 // With:
 const lastUpdated = useMemo(() => {
   if (!tasks?.length) return undefined;
-  return tasks.reduce((max, t) => 
-    t.updatedAt > max ? t.updatedAt : max, 
+  return tasks.reduce((max, t) =>
+    t.updatedAt > max ? t.updatedAt : max,
     tasks[0].updatedAt
   );
 }, [tasks]);
@@ -222,7 +222,7 @@ interface UIState {
 detailPanelHeight: 320,
 
 // Actions
-setDetailPanelHeight: (height: number) => 
+setDetailPanelHeight: (height: number) =>
   set({ detailPanelHeight: Math.min(Math.max(height, 120), window.innerHeight * 0.6) }),
 ```
 
@@ -235,7 +235,7 @@ export function DetailPanel() {
   const detailPanelHeight = useUIStore((s) => s.detailPanelHeight);
   const setDetailPanelHeight = useUIStore((s) => s.setDetailPanelHeight);
   const detailPanelOpen = useUIStore((s) => s.detailPanelOpen);
-  
+
   const isDragging = useRef(false);
   const startY = useRef(0);
   const startHeight = useRef(0);
@@ -259,7 +259,7 @@ export function DetailPanel() {
   }, []);
 
   return (
-    <div 
+    <div
       className={panel({ open: detailPanelOpen })}
       style={detailPanelOpen ? { height: detailPanelHeight } : undefined}
     >
@@ -273,12 +273,12 @@ export function DetailPanel() {
           onPointerCancel={handlePointerUp}
         />
       )}
-      
+
       {/* Toggle bar */}
       <button className="h-10 px-4 flex items-center ...">
         ...
       </button>
-      
+
       {/* Content */}
       ...
     </div>
@@ -386,7 +386,7 @@ export function useMilestoneFilter() {
   // Sync URL on change
   const setFilterMilestoneId = useCallback((id: TaskId | null) => {
     setFilterInternal(id);
-    
+
     const url = new URL(window.location.href);
     if (id) {
       url.searchParams.set("milestone", id);
@@ -471,7 +471,7 @@ import { useMilestoneFilter } from "./lib/use-url-filter.js";
 const [filterMilestoneId, setFilterMilestoneId] = useMilestoneFilter();
 
 // Get milestones for filter dropdown
-const milestones = useMemo(() => 
+const milestones = useMemo(() =>
   tasks?.filter((t) => t.depth === 0) ?? [],
   [tasks]
 );
@@ -490,7 +490,7 @@ useEffect(() => {
 const { visibleTasks, externalBlockers } = useMemo(() => {
   if (!tasks) return { visibleTasks: [], externalBlockers: new Map() };
   if (!filterMilestoneId) return { visibleTasks: tasks, externalBlockers: new Map() };
-  
+
   // Get all descendants of selected milestone
   const descendants = new Set<TaskId>([filterMilestoneId]);
   let changed = true;
@@ -503,9 +503,9 @@ const { visibleTasks, externalBlockers } = useMemo(() => {
       }
     }
   }
-  
+
   const visible = tasks.filter((t) => descendants.has(t.id));
-  
+
   // Find external blockers (blockers not in visible set)
   const external = new Map<TaskId, Task>();
   for (const task of visible) {
@@ -518,7 +518,7 @@ const { visibleTasks, externalBlockers } = useMemo(() => {
       }
     }
   }
-  
+
   return { visibleTasks: visible, externalBlockers: external };
 }, [tasks, filterMilestoneId]);
 
@@ -619,14 +619,14 @@ function TaskItem({ task, hasChildren, isCollapsed, onToggleCollapse, ...props }
             </svg>
           </button>
         )}
-        
+
         {/* Tree prefix */}
         {treePrefix && !hasChildren && (
           <span className="text-text-dim font-mono text-sm select-none whitespace-pre flex-shrink-0 w-4">
             {/* spacer for alignment */}
           </span>
         )}
-        
+
         ...rest of item
       </div>
     </button>
@@ -824,7 +824,7 @@ useEffect(() => {
     <span className="text-xs font-mono text-accent">
       Milestone: {selectedMilestone?.description.slice(0, 20)}
     </span>
-    <button 
+    <button
       onClick={() => setFilterMilestoneId(null)}
       className="text-accent hover:text-accent-muted"
       aria-label="Clear filter"
@@ -867,7 +867,7 @@ interface ExternalBlockerNode {
 
 // Render external node as compact stub:
 const ExternalNodeComponent = ({ data }: NodeProps<ExternalBlockerNode>) => (
-  <div 
+  <div
     className="px-2 py-1 bg-surface-secondary border border-dashed border-text-dim rounded text-xs text-text-muted"
     title={`External: ${data.taskDescription ?? data.taskId}`}
   >

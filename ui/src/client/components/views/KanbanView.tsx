@@ -69,11 +69,11 @@ export function KanbanView({
     () => computeExternalBlockerCounts(tasks, externalBlockers),
     [tasks, externalBlockers]
   );
-  
+
   // Focus state: [columnIndex, taskIndexInColumn]
   const [focusedColumn, setFocusedColumn] = useState(0);
   const [focusedIndexInColumn, setFocusedIndexInColumn] = useState(0);
-  
+
   // Refs for focus management
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -136,7 +136,7 @@ export function KanbanView({
   // Sync focus with external selection
   useEffect(() => {
     if (!selectedId) return;
-    
+
     for (let colIdx = 0; colIdx < COLUMNS.length; colIdx++) {
       const col = COLUMNS[colIdx];
       if (!col) continue;
@@ -496,7 +496,7 @@ function KanbanCard({
         selected={isSelected}
         interactive
         className={`
-          p-3 
+          p-3
           ${isChanged ? "animate-flash-change" : ""}
           ${task.archived ? "opacity-70" : ""}
         `}
@@ -539,7 +539,7 @@ function KanbanCard({
         {hasChildren && (
           <div className="flex items-center gap-2 mb-2">
             <div className="flex-1 h-1.5 bg-surface-secondary rounded-full overflow-hidden">
-              <div 
+              <div
                 aria-hidden="true"
                 className="h-full bg-accent transition-all duration-300 motion-reduce:transition-none"
                 style={{ width: `${(childCount.completed / childCount.total) * 100}%` }}

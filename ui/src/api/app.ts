@@ -16,14 +16,14 @@ const api = new Hono()
 
 /**
  * Create full app with static file serving.
- * 
+ *
  * @param staticRoot - Path to static files (relative to cwd).
  *   - Dev: "./dist" (relative to ui/)
  *   - Prod: Uses OVERSEER_UI_STATIC_ROOT env var, fallback "./static"
  */
 export function createApp(staticRoot?: string) {
   const root = staticRoot ?? process.env.OVERSEER_UI_STATIC_ROOT ?? "./static";
-  
+
   return new Hono()
     .route("/", api)
     // Serve static files
