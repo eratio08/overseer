@@ -3,14 +3,10 @@ use std::io::IsTerminal;
 use owo_colors::{OwoColorize, Style};
 use serde::Deserialize;
 
-use crate::commands::{learning::LearningCommand, task::TaskCommand, vcs::VcsCommand, DataCommand};
+use crate::commands::{learning::LearningCommand, task::TaskCommand, DataCommand};
 use crate::db;
 use crate::id::TaskId;
 use crate::types;
-use crate::vcs::{
-    backend::{ChangeType, FileStatusKind},
-    DiffEntry, LogEntry, VcsInfo, VcsStatus, VcsType,
-};
 use crate::Command;
 
 /// Task status for display classification
@@ -220,24 +216,6 @@ impl Printer {
             }
             Command::Learning(_) => {
                 self.print_learning(output);
-            }
-            Command::Vcs(VcsCommand::Detect) => {
-                self.print_vcs_detect(output);
-            }
-            Command::Vcs(VcsCommand::Status) => {
-                self.print_vcs_status(output);
-            }
-            Command::Vcs(VcsCommand::Log(_)) => {
-                self.print_vcs_log(output);
-            }
-            Command::Vcs(VcsCommand::Diff(_)) => {
-                self.print_vcs_diff(output);
-            }
-            Command::Vcs(VcsCommand::Commit(_)) => {
-                self.print_vcs_commit(output);
-            }
-            Command::Vcs(VcsCommand::Cleanup(_)) => {
-                self.print_vcs_cleanup(output);
             }
             Command::Data(DataCommand::Export { .. }) => {
                 self.print_data_export(output);
@@ -729,125 +707,6 @@ impl Printer {
             println!("  Task: {}", self.fmt_id(&learning.task_id));
             if let Some(ref source) = learning.source_task_id {
                 println!("  Source: {}", self.fmt_id(source));
-            }
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_detect(&self, output: &str) {
-        if let Ok(info) = serde_json::from_str::<VcsInfo>(output) {
-            match info.vcs_type {
-                VcsType::Jj => println!("JJ repository at {}", info.root),
-                VcsType::Git => println!("Git repository at {}", info.root),
-                VcsType::None => println!("Not a repository"),
-            }
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_status(&self, output: &str) {
-        if let Ok(status) = serde_json::from_str::<VcsStatus>(output) {
-            if let Some(ref id) = status.working_copy_id {
-                println!("Working copy: {}", self.fmt_id(&id));
-            }
-            if status.files.is_empty() {
-                println!("No changes");
-            } else {
-                for f in &status.files {
-                    let (symbol, style) = match f.status {
-                        FileStatusKind::Modified => ('M', self.colors.pending),
-                        FileStatusKind::Added => ('A', self.colors.completed),
-                        FileStatusKind::Deleted => ('D', self.colors.blocked),
-                        FileStatusKind::Renamed => ('R', self.colors.pending),
-                        FileStatusKind::Untracked => ('?', self.colors.tree_line),
-                        FileStatusKind::Conflict => ('C', self.colors.error),
-                    };
-                    println!("  {} {}", symbol.style(style), f.path);
-                }
-            }
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_log(&self, output: &str) {
-        if let Ok(entries) = serde_json::from_str::<Vec<LogEntry>>(output) {
-            for entry in entries {
-                println!("{} {} - {}", entry.id, entry.author, entry.description);
-            }
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_diff(&self, output: &str) {
-        if let Ok(entries) = serde_json::from_str::<Vec<DiffEntry>>(output) {
-            if entries.is_empty() {
-                println!("No changes");
-            } else {
-                for entry in entries {
-                    let (symbol, style) = match entry.change_type {
-                        ChangeType::Added => ("+", self.colors.completed),
-                        ChangeType::Deleted => ("-", self.colors.blocked),
-                        ChangeType::Modified => ("~", self.colors.pending),
-                        ChangeType::Renamed => ("→", self.colors.pending),
-                    };
-                    println!("{} {}", symbol.style(style), entry.path);
-                }
-            }
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_commit(&self, output: &str) {
-        if let Ok(result) = serde_json::from_str::<crate::vcs::CommitResult>(output) {
-            println!("Committed: {} - {}", result.id, result.message);
-        } else {
-            println!("{}", output);
-        }
-    }
-
-    fn print_vcs_cleanup(&self, output: &str) {
-        use crate::commands::vcs::{CleanupResult, OrphanReason};
-
-        if let Ok(result) = serde_json::from_str::<CleanupResult>(output) {
-            if result.orphaned.is_empty() {
-                println!("No orphaned branches found");
-                return;
-            }
-
-            println!("Orphaned branches:");
-            for branch in &result.orphaned {
-                let reason = match branch.reason {
-                    OrphanReason::TaskNotFound => "task deleted",
-                    OrphanReason::TaskCompleted => "task completed",
-                };
-                println!("  {} ({})", branch.name.style(self.colors.pending), reason);
-            }
-
-            if !result.deleted.is_empty() {
-                println!();
-                println!(
-                    "{} branches deleted",
-                    result.deleted.len().style(self.colors.completed)
-                );
-            } else if !result.orphaned.is_empty() {
-                println!();
-                println!(
-                    "Run with {} to delete orphaned branches",
-                    "--delete".style(self.colors.pending)
-                );
-            }
-
-            if !result.failed.is_empty() {
-                println!();
-                println!(
-                    "{} branches failed to delete",
-                    result.failed.len().style(self.colors.blocked)
-                );
             }
         } else {
             println!("{}", output);

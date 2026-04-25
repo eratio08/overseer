@@ -1,7 +1,6 @@
 use thiserror::Error;
 
 use crate::id::{LearningId, TaskId};
-use crate::vcs::VcsError;
 
 /// Reason why a task cannot be started
 #[derive(Debug, Clone)]
@@ -91,9 +90,6 @@ pub enum OsError {
     #[error("Cannot reopen active task (task is {state}, must be completed)")]
     CannotReopenActive { state: String },
 
-    #[error("Cannot start task (task is {state}, must be pending or in-progress)")]
-    CannotStartInactive { state: String },
-
     #[error("Cannot start completed task")]
     CannotStartCompleted,
 
@@ -118,24 +114,6 @@ pub enum OsError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("Not in a repository - run `jj init` or `git init`")]
-    NotARepository,
-
-    #[error("Working copy has uncommitted changes - commit or stash first")]
-    DirtyWorkingCopy,
-
-    #[error("VCS error: {0}")]
-    Vcs(VcsError),
-}
-
-impl From<VcsError> for OsError {
-    fn from(err: VcsError) -> Self {
-        match err {
-            VcsError::NotARepository => OsError::NotARepository,
-            VcsError::DirtyWorkingCopy => OsError::DirtyWorkingCopy,
-            other => OsError::Vcs(other),
-        }
-    }
 }
 
 pub type Result<T> = std::result::Result<T, OsError>;

@@ -2,11 +2,9 @@ use clap::{Args, Subcommand};
 use rusqlite::Connection;
 
 use crate::core::{get_task_with_context, TaskService, TaskWithContext, TaskWorkflowService};
-use crate::db::task_repo;
 use crate::error::Result;
 use crate::id::TaskId;
 use crate::types::{CreateTaskInput, ListTasksFilter, Task, UpdateTaskInput};
-use crate::vcs::backend::VcsBackend;
 
 /// Parse TaskId from CLI string (requires prefix)
 fn parse_task_id(s: &str) -> std::result::Result<TaskId, String> {
@@ -205,9 +203,10 @@ pub struct TaskTree {
     pub children: Vec<TaskTree>,
 }
 
-/// Handle task command (CRUD operations - no VCS required)
+/// Handle task commands.
 pub fn handle(conn: &Connection, cmd: TaskCommand) -> Result<TaskResult> {
     let svc = TaskService::new(conn);
+    let workflow = TaskWorkflowService::new(conn);
 
     match cmd {
         TaskCommand::Create(args) => {
@@ -266,6 +265,14 @@ pub fn handle(conn: &Connection, cmd: TaskCommand) -> Result<TaskResult> {
             Ok(TaskResult::One(svc.update(&args.id, &input)?))
         }
 
+        TaskCommand::Start { id } => Ok(TaskResult::One(workflow.start_follow_blockers(&id)?)),
+
+        TaskCommand::Complete(args) => Ok(TaskResult::One(workflow.complete_with_learnings(
+            &args.id,
+            args.result.as_deref(),
+            &args.learnings,
+        )?)),
+
         TaskCommand::Reopen { id } => Ok(TaskResult::One(svc.reopen(&id)?)),
 
         TaskCommand::Cancel { id } => Ok(TaskResult::One(svc.cancel(&id)?)),
@@ -313,63 +320,7 @@ pub fn handle(conn: &Connection, cmd: TaskCommand) -> Result<TaskResult> {
             let progress = calculate_progress(conn, args.id.as_ref())?;
             Ok(TaskResult::Progress(progress))
         }
-
-        // Workflow commands require VCS - caller must use handle_workflow
-        TaskCommand::Start { .. } | TaskCommand::Complete(_) => {
-            Err(crate::error::OsError::NotARepository)
-        }
     }
-}
-
-/// Handle workflow commands (start/complete - VCS required)
-pub fn handle_workflow(
-    conn: &Connection,
-    cmd: TaskCommand,
-    vcs: Box<dyn VcsBackend>,
-) -> Result<TaskResult> {
-    let workflow = TaskWorkflowService::new(conn, vcs);
-
-    match cmd {
-        TaskCommand::Start { id } => Ok(TaskResult::One(workflow.start_follow_blockers(&id)?)),
-
-        TaskCommand::Complete(args) => Ok(TaskResult::One(workflow.complete_with_learnings(
-            &args.id,
-            args.result.as_deref(),
-            &args.learnings,
-        )?)),
-
-        // Non-workflow commands delegate to handle()
-        _ => handle(conn, cmd),
-    }
-}
-
-/// Handle delete command (VCS optional - best-effort bookmark cleanup)
-pub fn handle_delete(
-    conn: &Connection,
-    cmd: TaskCommand,
-    vcs: Option<Box<dyn VcsBackend>>,
-) -> Result<TaskResult> {
-    let TaskCommand::Delete { id } = cmd else {
-        return handle(conn, cmd);
-    };
-
-    // Prefetch bookmarks BEFORE cascade delete removes them
-    let bookmarks = task_repo::get_all_bookmarks(conn, &id)?;
-
-    // Delete task (cascades to children, learnings, blockers)
-    let svc = TaskService::new(conn);
-    svc.delete(&id)?;
-
-    // Best-effort bookmark cleanup if VCS available
-    if let Some(vcs) = vcs {
-        for bookmark in bookmarks {
-            if let Err(e) = vcs.delete_bookmark(&bookmark) {
-                eprintln!("warn: failed to delete bookmark {}: {}", bookmark, e);
-            }
-        }
-    }
-
-    Ok(TaskResult::Deleted)
 }
 
 fn build_tree_for_task(conn: &Connection, root_id: &TaskId) -> Result<TaskTree> {

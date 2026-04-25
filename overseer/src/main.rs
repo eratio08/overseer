@@ -1,5 +1,5 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 
 use clap::{CommandFactory, Parser, Subcommand};
@@ -12,14 +12,9 @@ mod error;
 mod id;
 mod output;
 mod types;
-mod vcs;
-
-#[cfg(test)]
-mod testutil;
-
 use commands::{
-    data, learning, task, vcs as vcs_cmd, DataCommand, DataResult, LearningCommand, LearningResult,
-    TaskCommand, TaskResult, VcsCommand,
+    data, learning, task, DataCommand, DataResult, LearningCommand, LearningResult, TaskCommand,
+    TaskResult,
 };
 use output::Printer;
 
@@ -33,7 +28,6 @@ Overseer (os) - Task orchestration for AI coding agents.
 
 Features:
   • 3-level task hierarchy: milestone → task → subtask
-  • VCS integration (jj-first, git fallback)
   • Dependency management with cycle detection
   • Learning capture and inheritance
 
@@ -54,7 +48,7 @@ struct Cli {
     #[arg(long, global = true)]
     no_color: bool,
 
-    /// Override database path (default: VCS_ROOT/.overseer/tasks.db)
+    /// Override database path (default: CWD/.overseer/tasks.db)
     #[arg(long, global = true)]
     db: Option<PathBuf>,
 }
@@ -68,10 +62,6 @@ enum Command {
     /// Learning management
     #[command(subcommand)]
     Learning(LearningCommand),
-
-    /// VCS operations (detect, status, log, diff, commit)
-    #[command(subcommand)]
-    Vcs(VcsCommand),
 
     /// Data import/export
     #[command(subcommand)]
@@ -103,8 +93,7 @@ Initialize the Overseer database.
 
 The database is created at:
   1. OVERSEER_DB_PATH (if set)
-  2. VCS_ROOT/.overseer/tasks.db (if in jj/git repo)
-  3. CWD/.overseer/tasks.db (fallback)
+  2. CWD/.overseer/tasks.db
 
 Usually runs automatically on first command.
 "#
@@ -283,12 +272,23 @@ fn find_static_root(exe_path: &PathBuf) -> Option<String> {
     None
 }
 
-/// Determine the default database path, anchored to the VCS root if found.
+/// Determine the default database path from the nearest existing Overseer database.
 ///
 /// Resolution order:
+fn find_existing_db_path(start: &Path) -> Option<PathBuf> {
+    for dir in start.ancestors() {
+        let candidate = dir.join(".overseer").join("tasks.db");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
 /// 1. OVERSEER_DB_PATH env var (if set)
-/// 2. VCS root (.jj or .git) -> .overseer/tasks.db
-/// 3. Fall back to current working directory -> .overseer/tasks.db
+/// 2. Nearest existing ancestor .overseer/tasks.db
+/// 3. Current working directory -> .overseer/tasks.db
 fn default_db_path() -> PathBuf {
     // Check env override first
     if let Ok(path) = std::env::var("OVERSEER_DB_PATH") {
@@ -297,11 +297,7 @@ fn default_db_path() -> PathBuf {
 
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    // Use VCS root if available (same detection as VCS module)
-    let (_, vcs_root) = vcs::detect_vcs_type(&cwd);
-    let base = vcs_root.unwrap_or(cwd);
-
-    base.join(".overseer").join("tasks.db")
+    find_existing_db_path(&cwd).unwrap_or_else(|| cwd.join(".overseer").join("tasks.db"))
 }
 
 fn main() {
@@ -358,21 +354,7 @@ fn run(command: &Command, db_path: &PathBuf) -> error::Result<String> {
         Command::Task(cmd) => {
             let conn = db::open_db(db_path)?;
             let cloned_cmd = clone_task_cmd(cmd);
-
-            // Only workflow commands (start/complete) require VCS
-            // Delete is best-effort VCS cleanup (works without VCS)
-            let result = match &cloned_cmd {
-                TaskCommand::Start { .. } | TaskCommand::Complete(_) => {
-                    let vcs = vcs::get_backend(&std::env::current_dir().unwrap_or_default())?;
-                    task::handle_workflow(&conn, cloned_cmd, vcs)?
-                }
-                TaskCommand::Delete { .. } => {
-                    // VCS optional for delete - best effort cleanup
-                    let vcs = vcs::get_backend(&std::env::current_dir().unwrap_or_default()).ok();
-                    task::handle_delete(&conn, cloned_cmd, vcs)?
-                }
-                _ => task::handle(&conn, cloned_cmd)?,
-            };
+            let result = task::handle(&conn, cloned_cmd)?;
 
             match result {
                 TaskResult::One(t) => Ok(serde_json::to_string_pretty(&t)?),
@@ -391,25 +373,6 @@ fn run(command: &Command, db_path: &PathBuf) -> error::Result<String> {
                 LearningResult::One(l) => Ok(serde_json::to_string_pretty(&l)?),
                 LearningResult::Many(ls) => Ok(serde_json::to_string_pretty(&ls)?),
                 LearningResult::Deleted => Ok(serde_json::json!({ "deleted": true }).to_string()),
-            }
-        }
-        Command::Vcs(cmd) => {
-            // Cleanup needs DB, other commands don't
-            let result = match &cmd {
-                VcsCommand::Cleanup(args) => {
-                    let conn = db::open_db(db_path)?;
-                    vcs_cmd::handle_cleanup(&conn, clone_cleanup_args(args))?
-                }
-                _ => vcs_cmd::handle(clone_vcs_cmd(cmd))?,
-            };
-
-            match result {
-                vcs_cmd::VcsResult::Info(info) => Ok(serde_json::to_string_pretty(&info)?),
-                vcs_cmd::VcsResult::Status(status) => Ok(serde_json::to_string_pretty(&status)?),
-                vcs_cmd::VcsResult::Log(log) => Ok(serde_json::to_string_pretty(&log)?),
-                vcs_cmd::VcsResult::Diff(diff) => Ok(serde_json::to_string_pretty(&diff)?),
-                vcs_cmd::VcsResult::Commit(result) => Ok(serde_json::to_string_pretty(&result)?),
-                vcs_cmd::VcsResult::Cleanup(result) => Ok(serde_json::to_string_pretty(&result)?),
             }
         }
         Command::Data(cmd) => {
@@ -507,28 +470,6 @@ fn clone_learning_cmd(cmd: &LearningCommand) -> LearningCommand {
             task_id: task_id.clone(),
         },
         LearningCommand::Delete { id } => LearningCommand::Delete { id: id.clone() },
-    }
-}
-
-fn clone_vcs_cmd(cmd: &VcsCommand) -> VcsCommand {
-    match cmd {
-        VcsCommand::Detect => VcsCommand::Detect,
-        VcsCommand::Status => VcsCommand::Status,
-        VcsCommand::Log(args) => VcsCommand::Log(vcs_cmd::LogArgs { limit: args.limit }),
-        VcsCommand::Diff(args) => VcsCommand::Diff(vcs_cmd::DiffArgs {
-            base: args.base.clone(),
-        }),
-        VcsCommand::Commit(args) => VcsCommand::Commit(vcs_cmd::CommitArgs {
-            message: args.message.clone(),
-        }),
-        // Cleanup handled separately via handle_cleanup()
-        VcsCommand::Cleanup(_) => unreachable!("cleanup handled separately"),
-    }
-}
-
-fn clone_cleanup_args(args: &vcs_cmd::CleanupArgs) -> vcs_cmd::CleanupArgs {
-    vcs_cmd::CleanupArgs {
-        delete: args.delete,
     }
 }
 

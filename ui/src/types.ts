@@ -79,12 +79,9 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   result: string | null;
-  commitSha: string | null;
   depth: Depth;
   blockedBy?: TaskId[];
   blocks?: TaskId[];
-  bookmark?: string;
-  startCommit?: string;
   /** Computed: true if task or any ancestor has incomplete blockers */
   effectivelyBlocked: boolean;
   /** Task was cancelled (abandoned without completion) */

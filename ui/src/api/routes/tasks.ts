@@ -2,7 +2,7 @@
  * Task API routes
  *
  * Note: No task creation in UI (CLI/MCP only)
- * Note: No start operation (complete only via workflow service)
+ * Note: No start operation in this UI surface
  */
 import { Hono, type Context } from "hono";
 import type { StatusCode } from "hono/utils/http-status";
@@ -37,12 +37,6 @@ function handleCliError(
       message.includes("cycle")
     ) {
       return c.json({ error: err.message }, 400);
-    }
-    if (
-      message.includes("not a repository") ||
-      message.includes("dirty working copy")
-    ) {
-      return c.json({ error: err.message, code: "VCS_ERROR" }, 400);
     }
     // Default to 500 for unknown CLI errors
     return c.json({ error: err.message }, 500);

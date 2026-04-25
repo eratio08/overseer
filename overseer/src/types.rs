@@ -59,11 +59,6 @@ pub struct Task {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub started_at: Option<DateTime<Utc>>,
-    pub commit_sha: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bookmark: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub depth: Option<i32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -111,6 +106,7 @@ impl Task {
         self.completed || self.cancelled
     }
 
+    #[cfg(test)]
     /// Task satisfies blocker (completed only, not cancelled)
     /// Note: archived is a visibility filter, doesn't affect blocker semantics
     pub fn satisfies_blocker(&self) -> bool {

@@ -133,12 +133,9 @@ export function decodeTask(v: unknown): Result<Task, DecodeError> {
     createdAt,
     updatedAt,
     result,
-    commitSha,
     depth,
     blockedBy,
     blocks,
-    bookmark,
-    startCommit,
     effectivelyBlocked,
     cancelled,
     cancelledAt,
@@ -176,9 +173,6 @@ export function decodeTask(v: unknown): Result<Task, DecodeError> {
   }
   if (result !== null && !isString(result)) {
     return Result.err(new DecodeError({ message: "Task result must be string or null" }));
-  }
-  if (commitSha !== null && !isString(commitSha)) {
-    return Result.err(new DecodeError({ message: "Task commitSha must be string or null" }));
   }
   if (!isDepth(depth)) {
     return Result.err(new DecodeError({ message: `Invalid task depth: ${depth}` }));
@@ -228,14 +222,6 @@ export function decodeTask(v: unknown): Result<Task, DecodeError> {
     }
   }
 
-  // Optional string fields
-  if (bookmark !== undefined && !isString(bookmark)) {
-    return Result.err(new DecodeError({ message: "Task bookmark must be string" }));
-  }
-  if (startCommit !== undefined && !isString(startCommit)) {
-    return Result.err(new DecodeError({ message: "Task startCommit must be string" }));
-  }
-
   const task: Task = {
     id: id as TaskId,
     parentId: parentId as TaskId | null,
@@ -247,7 +233,6 @@ export function decodeTask(v: unknown): Result<Task, DecodeError> {
     createdAt,
     updatedAt,
     result: result as string | null,
-    commitSha: commitSha as string | null,
     depth: depth as Depth,
     effectivelyBlocked,
     cancelled,
@@ -258,8 +243,6 @@ export function decodeTask(v: unknown): Result<Task, DecodeError> {
 
   if (decodedBlockedBy) task.blockedBy = decodedBlockedBy;
   if (decodedBlocks) task.blocks = decodedBlocks;
-  if (bookmark !== undefined) task.bookmark = bookmark as string;
-  if (startCommit !== undefined) task.startCommit = startCommit as string;
 
   return Result.ok(task);
 }

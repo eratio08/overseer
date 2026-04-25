@@ -51,12 +51,6 @@ function handleCliError(
     ) {
       return c.json({ error: err.message }, 400);
     }
-    if (
-      message.includes("not a repository") ||
-      message.includes("dirty working copy")
-    ) {
-      return c.json({ error: err.message, code: "VCS_ERROR" }, 400);
-    }
     return c.json({ error: err.message }, 500);
   }
   const message = err instanceof Error ? err.message : String(err);

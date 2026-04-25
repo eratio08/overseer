@@ -40,9 +40,6 @@ fn row_to_task(row: &Row) -> rusqlite::Result<Task> {
             .get::<_, Option<String>>("started_at")?
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&Utc)),
-        commit_sha: row.get("commit_sha")?,
-        bookmark: row.get("bookmark")?,
-        start_commit: row.get("start_commit")?,
         depth: None,
         blocked_by: Vec::new(),
         blocks: Vec::new(),
@@ -133,20 +130,20 @@ pub fn list_tasks(conn: &Connection, filter: &ListTasksFilter) -> Result<Vec<Tas
             r#"
             WITH RECURSIVE task_depths AS (
                 SELECT id, parent_id, description, context, result, priority, completed,
-                       completed_at, created_at, updated_at, started_at, commit_sha, bookmark, start_commit,
+                       completed_at, created_at, updated_at, started_at,
                        cancelled, cancelled_at, archived, archived_at,
                        0 as depth
                 FROM tasks WHERE parent_id IS NULL
                 UNION ALL
                 SELECT t.id, t.parent_id, t.description, t.context, t.result, t.priority, t.completed,
-                       t.completed_at, t.created_at, t.updated_at, t.started_at, t.commit_sha, t.bookmark, t.start_commit,
+                       t.completed_at, t.created_at, t.updated_at, t.started_at,
                        t.cancelled, t.cancelled_at, t.archived, t.archived_at,
                        td.depth + 1
                 FROM tasks t
                 INNER JOIN task_depths td ON t.parent_id = td.id
             )
             SELECT id, parent_id, description, context, result, priority, completed,
-                   completed_at, created_at, updated_at, started_at, commit_sha, bookmark, start_commit,
+                   completed_at, created_at, updated_at, started_at,
                    cancelled, cancelled_at, archived, archived_at
             FROM task_depths WHERE 1=1
             "#,
@@ -294,12 +291,11 @@ pub fn complete_task(
     conn: &Connection,
     id: &TaskId,
     result: Option<&str>,
-    commit_sha: Option<&str>,
 ) -> Result<Task> {
     let now_str = now().to_rfc3339();
     conn.execute(
-        "UPDATE tasks SET completed = 1, completed_at = ?1, result = ?2, commit_sha = ?3, updated_at = ?1 WHERE id = ?4",
-        params![now_str, result, commit_sha, id],
+        "UPDATE tasks SET completed = 1, completed_at = ?1, result = ?2, updated_at = ?1 WHERE id = ?3",
+        params![now_str, result, id],
     )?;
     get_task(conn, id)?.ok_or_else(|| OsError::TaskNotFound(id.clone()))
 }
@@ -395,66 +391,6 @@ pub fn has_pending_children(conn: &Connection, id: &TaskId) -> Result<bool> {
     Ok(count > 0)
 }
 
-pub fn set_bookmark(conn: &Connection, id: &TaskId, bookmark: &str) -> Result<()> {
-    let now_str = now().to_rfc3339();
-    conn.execute(
-        "UPDATE tasks SET bookmark = ?1, updated_at = ?2 WHERE id = ?3",
-        params![bookmark, now_str, id],
-    )?;
-    Ok(())
-}
-
-pub fn set_start_commit(conn: &Connection, id: &TaskId, start_commit: &str) -> Result<()> {
-    let now_str = now().to_rfc3339();
-    conn.execute(
-        "UPDATE tasks SET start_commit = ?1, updated_at = ?2 WHERE id = ?3",
-        params![start_commit, now_str, id],
-    )?;
-    Ok(())
-}
-
-/// Clear bookmark field after VCS bookmark deletion
-pub fn clear_bookmark(conn: &Connection, id: &TaskId) -> Result<()> {
-    let now_str = now().to_rfc3339();
-    conn.execute(
-        "UPDATE tasks SET bookmark = NULL, updated_at = ?1 WHERE id = ?2",
-        params![now_str, id],
-    )?;
-    Ok(())
-}
-
-/// Get bookmark for a task (lightweight query for delete cleanup)
-pub fn get_bookmark(conn: &Connection, id: &TaskId) -> Result<Option<String>> {
-    conn.query_row(
-        "SELECT bookmark FROM tasks WHERE id = ?1",
-        params![id],
-        |row| row.get(0),
-    )
-    .optional()
-    .map(|opt| opt.flatten())
-    .map_err(OsError::from)
-}
-
-/// Get bookmarks for task and all descendants (for delete cleanup)
-pub fn get_all_bookmarks(conn: &Connection, id: &TaskId) -> Result<Vec<String>> {
-    let mut bookmarks = Vec::new();
-
-    // Get the task's own bookmark
-    if let Some(bookmark) = get_bookmark(conn, id)? {
-        bookmarks.push(bookmark);
-    }
-
-    // Get all descendant bookmarks
-    let descendants = get_all_descendants(conn, id)?;
-    for desc in descendants {
-        if let Some(bookmark) = desc.bookmark {
-            bookmarks.push(bookmark);
-        }
-    }
-
-    Ok(bookmarks)
-}
-
 pub fn get_children(conn: &Connection, parent_id: &TaskId) -> Result<Vec<Task>> {
     let mut stmt = conn.prepare("SELECT * FROM tasks WHERE parent_id = ?1")?;
     let mut tasks: Vec<Task> = stmt
@@ -470,7 +406,6 @@ pub fn get_children(conn: &Connection, parent_id: &TaskId) -> Result<Vec<Task>> 
 }
 
 /// Get all descendants (children, grandchildren, etc.) recursively.
-/// Used for cleanup operations like bookmark deletion on milestone complete.
 pub fn get_all_descendants(conn: &Connection, root_id: &TaskId) -> Result<Vec<Task>> {
     let mut all_descendants = Vec::new();
     let mut stack = vec![root_id.clone()];

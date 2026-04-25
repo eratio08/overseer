@@ -5,28 +5,17 @@ use crate::db::task_repo;
 use crate::error::{NotReadyReason, OsError, Result};
 use crate::id::TaskId;
 use crate::types::Task;
-use crate::vcs::backend::{VcsBackend, VcsError};
 
-/// Coordinates task state transitions with VCS operations.
-///
-/// **Transaction semantics**: VCS-first, then DB.
-/// - VCS operations run first and can fail the entire operation
-/// - DB operations run after VCS succeeds
-/// - This prevents partial state on VCS failure
-///
-/// VCS is mandatory for workflow operations (start/complete).
-/// CRUD operations don't require VCS.
+/// Coordinates task lifecycle transitions.
 pub struct TaskWorkflowService<'a> {
     task_service: TaskService<'a>,
-    vcs: Box<dyn VcsBackend>,
     conn: &'a Connection,
 }
 
 impl<'a> TaskWorkflowService<'a> {
-    pub fn new(conn: &'a Connection, vcs: Box<dyn VcsBackend>) -> Self {
+    pub fn new(conn: &'a Connection) -> Self {
         Self {
             task_service: TaskService::new(conn),
-            vcs,
             conn,
         }
     }
@@ -42,7 +31,7 @@ impl<'a> TaskWorkflowService<'a> {
 
         // Guard: cannot start non-active tasks (cancelled, completed, archived)
         // This check MUST come before the idempotent path to prevent starting
-        // tasks that were started then cancelled (they still have bookmark/started_at)
+        // tasks that were started then cancelled.
         if !task.is_active_for_work() {
             return match task.lifecycle_state() {
                 crate::types::LifecycleState::Completed => Err(OsError::CannotStartCompleted),
@@ -56,44 +45,16 @@ impl<'a> TaskWorkflowService<'a> {
             };
         }
 
-        // Idempotent: already started with VCS state
-        if task.started_at.is_some() && task.bookmark.is_some() {
-            // Just checkout the existing bookmark
-            if let Some(ref bookmark) = task.bookmark {
-                self.vcs.checkout(bookmark)?;
-            }
+        if task.started_at.is_some() {
             return self.task_service.get(id);
         }
 
         // Validate: must be the next ready task in its subtree
         self.validate_start_target(id, &task)?;
 
-        let bookmark = task
-            .bookmark
-            .clone()
-            .unwrap_or_else(|| format!("task/{}", id));
+        self.task_service.start(id)?;
 
-        // 1. Ensure bookmark exists (idempotent)
-        match self.vcs.create_bookmark(&bookmark, None) {
-            Ok(()) | Err(VcsError::BookmarkExists(_)) => {}
-            Err(e) => return Err(e.into()),
-        }
-
-        // 2. Checkout (can fail on DirtyWorkingCopy)
-        self.vcs.checkout(&bookmark)?;
-
-        // 3. Record start commit
-        let sha = self.vcs.current_commit_id()?;
-
-        // 4. DB updates (after VCS succeeds)
-        task_repo::set_bookmark(self.conn, id, &bookmark)?;
-        task_repo::set_start_commit(self.conn, id, &sha)?;
-
-        if task.started_at.is_none() {
-            self.task_service.start(id)?;
-        }
-
-        // 5. Bubble started_at to ancestors (but not VCS state)
+        // Bubble started_at to ancestors.
         self.bubble_start_to_ancestors(id)?;
 
         self.task_service.get(id)
@@ -168,7 +129,6 @@ impl<'a> TaskWorkflowService<'a> {
     }
 
     /// Bubble started_at to all ancestors that don't have it set.
-    /// Only sets started_at, not VCS bookmark/start_commit.
     fn bubble_start_to_ancestors(&self, id: &TaskId) -> Result<()> {
         let mut current_id = id.clone();
 
@@ -212,8 +172,6 @@ impl<'a> TaskWorkflowService<'a> {
 
     /// Complete a task with optional learnings.
     /// Learnings are added to the task and bubbled to immediate parent.
-    ///
-    /// VCS-first ordering: commit changes before updating DB state.
     pub fn complete_with_learnings(
         &self,
         id: &TaskId,
@@ -240,47 +198,9 @@ impl<'a> TaskWorkflowService<'a> {
             return self.complete_milestone_with_learnings(id, result, learnings);
         }
 
-        // 1. VCS first - commit (NothingToCommit is OK)
-        let msg = format!("Complete: {}\n\n{}", task.description, result.unwrap_or(""));
-        match self.vcs.commit(&msg) {
-            Ok(_) | Err(VcsError::NothingToCommit) => {}
-            Err(e) => return Err(e.into()),
-        }
-
-        // 2. DB updates (after VCS succeeds)
         let completed_task = self
             .task_service
             .complete_with_learnings(id, result, learnings)?;
-
-        // 3. Best-effort cleanup: checkout safe target then delete bookmark/branch
-        // Unified stacking semantics: both jj and git get same behavior
-        // Checkout first solves git's "cannot delete checked-out branch" error
-        if let Some(ref bookmark) = task.bookmark {
-            // Find checkout target: prefer start_commit, fallback to current HEAD
-            let checkout_target = task
-                .start_commit
-                .clone()
-                .or_else(|| self.vcs.current_commit_id().ok());
-
-            if let Some(ref target) = checkout_target {
-                if let Err(e) = self.vcs.checkout(target) {
-                    eprintln!(
-                        "warn: failed to checkout {}: {} - skipping branch cleanup",
-                        target, e
-                    );
-                } else if let Err(e) = self.vcs.delete_bookmark(bookmark) {
-                    eprintln!("warn: failed to delete bookmark {}: {}", bookmark, e);
-                } else {
-                    // Clear bookmark field in DB after successful VCS deletion
-                    let _ = task_repo::clear_bookmark(self.conn, id);
-                }
-            } else {
-                eprintln!(
-                    "warn: no checkout target available - skipping branch cleanup for {}",
-                    bookmark
-                );
-            }
-        }
 
         // Bubble up: auto-complete parents if all children done and unblocked
         self.bubble_up_completion(id)?;
@@ -330,8 +250,6 @@ impl<'a> TaskWorkflowService<'a> {
     }
 
     /// Complete a milestone with optional learnings.
-    ///
-    /// VCS-first ordering: commit changes before updating DB state.
     pub fn complete_milestone_with_learnings(
         &self,
         id: &TaskId,
@@ -355,14 +273,6 @@ impl<'a> TaskWorkflowService<'a> {
 
         // Not a milestone - delegate to regular complete (avoid infinite recursion)
         if task.depth != Some(0) {
-            // 1. VCS first - commit (NothingToCommit is OK)
-            let msg = format!("Complete: {}\n\n{}", task.description, result.unwrap_or(""));
-            match self.vcs.commit(&msg) {
-                Ok(_) | Err(VcsError::NothingToCommit) => {}
-                Err(e) => return Err(e.into()),
-            }
-
-            // 2. DB updates (after VCS succeeds)
             let completed_task = self
                 .task_service
                 .complete_with_learnings(id, result, learnings)?;
@@ -370,73 +280,7 @@ impl<'a> TaskWorkflowService<'a> {
             return Ok(completed_task);
         }
 
-        // Milestone: VCS first - commit (NothingToCommit is OK)
-        let msg = format!(
-            "Milestone: {}\n\n{}",
-            task.description,
-            result.unwrap_or("")
-        );
-        match self.vcs.commit(&msg) {
-            Ok(_) | Err(VcsError::NothingToCommit) => {}
-            Err(e) => return Err(e.into()),
-        }
-
-        // DB updates (after VCS succeeds)
-        let completed_task = self
-            .task_service
-            .complete_with_learnings(id, result, learnings)?;
-
-        // Best-effort cleanup: delete ALL descendant bookmarks
-        // Unified stacking semantics: both jj and git get same behavior
-        // For milestone, we need to checkout a safe commit first, then clean all descendants
-        let descendants = task_repo::get_all_descendants(self.conn, id)?;
-
-        // Find checkout target: prefer milestone's start_commit, then descendant's, then HEAD
-        let checkout_target = task
-            .start_commit
-            .clone()
-            .or_else(|| descendants.iter().find_map(|d| d.start_commit.clone()))
-            .or_else(|| self.vcs.current_commit_id().ok());
-
-        if let Some(ref target) = checkout_target {
-            if let Err(e) = self.vcs.checkout(target) {
-                eprintln!(
-                    "warn: failed to checkout {}: {} - skipping branch cleanup",
-                    target, e
-                );
-                return Ok(completed_task);
-            }
-        } else {
-            // No checkout target available - skip branch cleanup entirely
-            // This matches single-task behavior for consistency
-            eprintln!("warn: no checkout target available - skipping milestone branch cleanup");
-            return Ok(completed_task);
-        }
-
-        for descendant in descendants.iter() {
-            if let Some(ref bookmark) = descendant.bookmark {
-                if let Err(e) = self.vcs.delete_bookmark(bookmark) {
-                    eprintln!("warn: failed to delete bookmark {}: {}", bookmark, e);
-                } else {
-                    // Clear bookmark field in DB after successful VCS deletion
-                    let _ = task_repo::clear_bookmark(self.conn, &descendant.id);
-                }
-            }
-        }
-
-        // Also clean up milestone's own bookmark (if started as leaf before children added)
-        if let Some(ref bookmark) = task.bookmark {
-            if let Err(e) = self.vcs.delete_bookmark(bookmark) {
-                eprintln!(
-                    "warn: failed to delete milestone bookmark {}: {}",
-                    bookmark, e
-                );
-            } else {
-                let _ = task_repo::clear_bookmark(self.conn, id);
-            }
-        }
-
-        Ok(completed_task)
+        self.task_service.complete_with_learnings(id, result, learnings)
     }
 }
 
@@ -445,7 +289,6 @@ mod tests {
     use super::*;
     use crate::db::schema::init_schema;
     use crate::types::CreateTaskInput;
-    use crate::vcs::backend::{CommitResult, DiffEntry, LogEntry, VcsResult, VcsStatus, VcsType};
 
     fn setup_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
@@ -454,59 +297,10 @@ mod tests {
         conn
     }
 
-    /// Mock VCS backend for tests - all operations succeed with minimal side effects.
-    struct MockVcsBackend;
-
-    impl VcsBackend for MockVcsBackend {
-        fn vcs_type(&self) -> VcsType {
-            VcsType::Git
-        }
-        fn root(&self) -> &str {
-            "/mock"
-        }
-        fn status(&self) -> VcsResult<VcsStatus> {
-            Ok(VcsStatus {
-                files: vec![],
-                working_copy_id: Some("mock-commit".to_string()),
-            })
-        }
-        fn log(&self, _limit: usize) -> VcsResult<Vec<LogEntry>> {
-            Ok(vec![])
-        }
-        fn diff(&self, _base: Option<&str>) -> VcsResult<Vec<DiffEntry>> {
-            Ok(vec![])
-        }
-        fn commit(&self, message: &str) -> VcsResult<CommitResult> {
-            Ok(CommitResult {
-                id: "mock-commit-id".to_string(),
-                message: message.to_string(),
-            })
-        }
-        fn current_commit_id(&self) -> VcsResult<String> {
-            Ok("mock-commit-id".to_string())
-        }
-        fn create_bookmark(&self, _name: &str, _target: Option<&str>) -> VcsResult<()> {
-            Ok(())
-        }
-        fn delete_bookmark(&self, _name: &str) -> VcsResult<()> {
-            Ok(())
-        }
-        fn list_bookmarks(&self, _prefix: Option<&str>) -> VcsResult<Vec<String>> {
-            Ok(vec![])
-        }
-        fn checkout(&self, _target: &str) -> VcsResult<()> {
-            Ok(())
-        }
-    }
-
-    fn mock_vcs() -> Box<dyn VcsBackend> {
-        Box::new(MockVcsBackend)
-    }
-
     #[test]
     fn test_start_records_vcs_state() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
 
         let task = service
             .task_service()
@@ -521,14 +315,12 @@ mod tests {
 
         let started = service.start(&task.id).unwrap();
         assert!(started.started_at.is_some());
-        assert!(started.bookmark.is_some());
-        assert!(started.start_commit.is_some());
     }
 
     #[test]
     fn test_complete_updates_state() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
 
         let task = service
             .task_service()
@@ -549,7 +341,7 @@ mod tests {
     #[test]
     fn test_start_cascades_to_deepest_leaf() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask
@@ -592,7 +384,7 @@ mod tests {
     #[test]
     fn test_start_follows_blockers_to_startable() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: blocker_task, blocked_milestone -> task
@@ -637,7 +429,7 @@ mod tests {
     #[test]
     fn test_complete_bubbles_up_to_parent() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask1, subtask2
@@ -695,7 +487,7 @@ mod tests {
     #[test]
     fn test_complete_bubbles_up_to_milestone() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task (single task, no siblings)
@@ -729,7 +521,7 @@ mod tests {
     #[test]
     fn test_complete_stops_at_blocked_parent() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: blocker, milestone (blocked by blocker) -> task
@@ -773,7 +565,7 @@ mod tests {
     #[test]
     fn test_complete_stops_at_pending_siblings() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task1, task2
@@ -817,7 +609,7 @@ mod tests {
     #[test]
     fn test_complete_with_learnings_bubbles_to_parent() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask1, subtask2 (sibling prevents auto-complete)
@@ -903,7 +695,7 @@ mod tests {
     #[test]
     fn test_learnings_bubble_transitively_on_parent_complete() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask
@@ -961,7 +753,7 @@ mod tests {
     #[test]
     fn test_sibling_sees_learnings_via_parent() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task_a (with subtasks), task_b (with subtasks)
@@ -1027,7 +819,7 @@ mod tests {
     #[test]
     fn test_learnings_idempotent_on_retry() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         let milestone = svc
@@ -1069,7 +861,7 @@ mod tests {
     #[test]
     fn test_start_rejects_parent_with_incomplete_children() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask
@@ -1143,7 +935,7 @@ mod tests {
     #[test]
     fn test_start_rejects_blocked_task() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: blocker, blocked_task (blocked by blocker)
@@ -1185,7 +977,7 @@ mod tests {
     #[test]
     fn test_start_bubbles_started_at_to_ancestors() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create: milestone -> task -> subtask
@@ -1227,22 +1019,19 @@ mod tests {
         // Start the subtask
         let started = service.start(&subtask.id).unwrap();
         assert!(started.started_at.is_some());
-        assert!(started.bookmark.is_some()); // VCS state only on leaf
 
-        // Ancestors should now have started_at but NOT VCS state
+        // Ancestors should now have started_at.
         let task_after = svc.get(&task.id).unwrap();
         assert!(task_after.started_at.is_some());
-        assert!(task_after.bookmark.is_none()); // No VCS bookmark on parent
 
         let milestone_after = svc.get(&milestone.id).unwrap();
         assert!(milestone_after.started_at.is_some());
-        assert!(milestone_after.bookmark.is_none()); // No VCS bookmark on grandparent
     }
 
     #[test]
     fn test_start_is_idempotent() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         let task = svc
@@ -1268,7 +1057,7 @@ mod tests {
     #[test]
     fn test_start_allows_leaf_without_children() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         // Create a milestone with no children (it's a leaf)
@@ -1291,7 +1080,7 @@ mod tests {
     #[test]
     fn test_complete_cancelled_task_fails() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         let task = svc
@@ -1319,7 +1108,7 @@ mod tests {
     #[test]
     fn test_complete_archived_task_fails() {
         let conn = setup_db();
-        let service = TaskWorkflowService::new(&conn, mock_vcs());
+        let service = TaskWorkflowService::new(&conn);
         let svc = service.task_service();
 
         let task = svc

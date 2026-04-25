@@ -16,7 +16,6 @@ export async function execute(code: string): Promise<unknown> {
   const MAX_TIMERS = 100;
 
   // Create sandbox context with exposed APIs
-  // Note: VCS operations are now integrated into task start/complete, not exposed directly
   const sandbox = {
     tasks,
     learnings,

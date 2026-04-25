@@ -2,7 +2,7 @@
  * Learnings API - typed wrapper around os learning commands
  *
  * Note: Learnings are now added via tasks.complete() with the learnings option.
- * They bubble to immediate parent on completion, aligning with VCS state.
+ * They bubble to immediate parent on completion.
  * This API only provides read access for viewing learnings.
  */
 import { callCli } from "../cli.js";

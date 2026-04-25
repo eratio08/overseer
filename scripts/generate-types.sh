@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generate TypeScript types from Rust types
 # This script creates a reference TypeScript file that should be compared against
-# mcp/src/types.ts and ui/src/types.ts for drift detection.
+# host/src/types.ts and ui/src/types.ts for drift detection.
 #
 # Usage: ./scripts/generate-types.sh
 
@@ -22,7 +22,7 @@ cat > "$OUTPUT_FILE" << 'EOF'
  * DO NOT EDIT - regenerate with: ./scripts/generate-types.sh
  *
  * Compare against:
- * - mcp/src/types.ts
+ * - host/src/types.ts
  * - ui/src/types.ts
  */
 
@@ -59,8 +59,8 @@ export function parseLearningId(s: string): LearningId {
 
 // ============ Domain Types ============
 
-/** Priority levels (enforced by Rust, 1-5) */
-export type Priority = 1 | 2 | 3 | 4 | 5;
+/** Priority levels (enforced by Rust, 0-2) */
+export type Priority = 0 | 1 | 2;
 
 /** Task depth (0=milestone, 1=task, 2=subtask) */
 export type Depth = 0 | 1 | 2;
@@ -106,14 +106,19 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   result: string | null;
-  commitSha: string | null;
   depth: Depth;
   blockedBy?: TaskId[];
   blocks?: TaskId[];
-  bookmark?: string;
-  startCommit?: string;
   /** Computed: true if task or any ancestor has incomplete blockers */
   effectivelyBlocked: boolean;
+  /** Task was cancelled (abandoned without completion) */
+  cancelled: boolean;
+  /** Timestamp when task was cancelled */
+  cancelledAt: string | null;
+  /** Task is archived (hidden from default views) */
+  archived: boolean;
+  /** Timestamp when task was archived */
+  archivedAt: string | null;
 }
 
 /**
@@ -136,46 +141,6 @@ export interface TaskProgress {
   completed: number;
   ready: number;   // !completed && !effectivelyBlocked
   blocked: number; // !completed && effectivelyBlocked
-}
-
-// ============ VCS Types ============
-
-export type VcsType = "jj" | "git" | "none";
-
-export interface VcsInfo {
-  type: VcsType;
-  root: string;
-}
-
-export type FileStatusKind = "modified" | "added" | "deleted" | "renamed" | "untracked" | "conflict";
-
-export interface FileStatus {
-  path: string;
-  status: FileStatusKind;
-}
-
-export interface VcsStatus {
-  files: FileStatus[];
-  workingCopyId: string | null;
-}
-
-export interface LogEntry {
-  id: string;
-  description: string;
-  author: string;
-  timestamp: string; // ISO 8601
-}
-
-export type ChangeType = "added" | "modified" | "deleted" | "renamed";
-
-export interface DiffEntry {
-  path: string;
-  changeType: ChangeType;
-}
-
-export interface CommitResult {
-  id: string;
-  message: string;
 }
 
 // ============ Error Types ============
@@ -202,5 +167,5 @@ EOF
 echo "Generated: $OUTPUT_FILE"
 echo ""
 echo "Compare with:"
-echo "  diff $OUTPUT_FILE mcp/src/types.ts"
+echo "  diff $OUTPUT_FILE host/src/types.ts"
 echo "  diff $OUTPUT_FILE ui/src/types.ts"

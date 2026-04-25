@@ -36,7 +36,6 @@ pub struct ExportTask {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub started_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub commit_sha: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -103,7 +102,6 @@ pub(crate) fn export_data(conn: &Connection, output: Option<PathBuf>) -> Result<
                     created_at: full_task.created_at,
                     updated_at: full_task.updated_at,
                     started_at: full_task.started_at,
-                    commit_sha: full_task.commit_sha,
                 })
         })
         .collect();
@@ -129,7 +127,7 @@ pub(crate) fn export_data(conn: &Connection, output: Option<PathBuf>) -> Result<
     }
 
     let export = ExportData {
-        version: "1.1.0".to_string(),
+        version: "2.0.0".to_string(),
         exported_at: chrono::Utc::now().to_rfc3339(),
         tasks: export_tasks.clone(),
         learnings: all_learnings.clone(),
@@ -183,7 +181,7 @@ mod tests {
         // Verify content
         let content = fs::read_to_string(&output_path).unwrap();
         let export: ExportData = serde_json::from_str(&content).unwrap();
-        assert_eq!(export.version, "1.1.0");
+        assert_eq!(export.version, "2.0.0");
         assert_eq!(export.tasks.len(), 0);
         assert_eq!(export.learnings.len(), 0);
         assert_eq!(export.blockers.len(), 0);

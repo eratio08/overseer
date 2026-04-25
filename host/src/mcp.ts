@@ -27,12 +27,9 @@ interface Task {
   createdAt: string;            // ISO 8601
   updatedAt: string;
   result: string | null;        // Completion notes
-  commitSha: string | null;     // Auto-populated on complete
   depth: 0 | 1 | 2;             // 0=milestone, 1=task, 2=subtask
   blockedBy?: string[];          // Omitted if empty
   blocks?: string[];             // Omitted if empty
-  bookmark?: string;            // VCS bookmark name (if started)
-  startCommit?: string;         // Commit SHA at start
   effectivelyBlocked: boolean;  // True if task OR ancestor has incomplete blockers
   cancelled: boolean;           // Task was cancelled (does NOT satisfy blockers)
   cancelledAt: string | null;
@@ -68,7 +65,6 @@ interface TaskProgress {
 type TaskType = "milestone" | "task" | "subtask";
 
 // Tasks API
-// Note: VCS (jj or git) is REQUIRED for start/complete. CRUD ops work without VCS.
 declare const tasks: {
   list(filter?: { parentId?: string; ready?: boolean; completed?: boolean; depth?: 0 | 1 | 2; type?: TaskType; archived?: boolean | "all" }): Promise<Task[]>;
   get(id: string): Promise<TaskWithContext>;
@@ -85,12 +81,12 @@ declare const tasks: {
     priority?: 0 | 1 | 2;
     parentId?: string;
   }): Promise<Task>;
-  start(id: string): Promise<Task>;  // VCS required: creates bookmark, records start commit
-  complete(id: string, options?: { result?: string; learnings?: string[] }): Promise<Task>;  // VCS required: commits changes (NothingToCommit = success)
+  start(id: string): Promise<Task>;
+  complete(id: string, options?: { result?: string; learnings?: string[] }): Promise<Task>;
   reopen(id: string): Promise<Task>;
   cancel(id: string): Promise<Task>;  // Cancel task (does NOT satisfy blockers)
   archive(id: string): Promise<Task>;  // Archive completed/cancelled task (hides from default list)
-  delete(id: string): Promise<void>;  // Best-effort VCS bookmark cleanup
+  delete(id: string): Promise<void>;
   block(taskId: string, blockerId: string): Promise<void>;
   unblock(taskId: string, blockerId: string): Promise<void>;
   nextReady(milestoneId?: string): Promise<TaskWithContext | null>;
@@ -104,8 +100,6 @@ declare const learnings: {
   list(taskId: string): Promise<Learning[]>;
 };
 \`\`\`
-
-**VCS Requirement:** \`start\` and \`complete\` require jj or git. Fails with NotARepository error if none found. CRUD operations work without VCS.
 
 Examples:
 
@@ -140,14 +134,14 @@ const subtask = await tasks.create({
   priority: 2
 });
 
-// Start working on task (VCS required - creates bookmark, records start commit)
+// Start working on task
 await tasks.start(subtask.id);
 
 // Get task with full context
 const task = await tasks.get(subtask.id);
 console.log(task.context.milestone); // inherited from root
 
-// Complete task (VCS required - commits changes)
+// Complete task
 await tasks.complete(task.id, { result: "Implemented using jose library" });
 
 // Cancel a task if abandoning (does NOT satisfy blockers)

@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use crate::error::Result;
 
-const SCHEMA_VERSION: i32 = 5;
+const SCHEMA_VERSION: i32 = 6;
 
 pub fn init_schema(conn: &Connection) -> Result<()> {
     let current_version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
@@ -21,10 +21,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 completed_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                commit_sha TEXT,
                 started_at TEXT,
-                bookmark TEXT,
-                start_commit TEXT,
                 cancelled INTEGER NOT NULL DEFAULT 0,
                 cancelled_at TEXT,
                 archived INTEGER NOT NULL DEFAULT 0,
@@ -142,6 +139,53 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         )?;
         conn.pragma_update(None, "user_version", 5)?;
         version = 5;
+    }
+
+    if version == 5 {
+        conn.execute_batch(
+            r#"
+            BEGIN;
+            CREATE TABLE tasks_new (
+                id TEXT PRIMARY KEY CHECK (id LIKE 'task_%'),
+                parent_id TEXT REFERENCES tasks(id) ON DELETE CASCADE CHECK (parent_id LIKE 'task_%'),
+                description TEXT NOT NULL,
+                context TEXT NOT NULL DEFAULT '',
+                result TEXT,
+                priority INTEGER NOT NULL DEFAULT 1,
+                completed INTEGER NOT NULL DEFAULT 0,
+                completed_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                started_at TEXT,
+                cancelled INTEGER NOT NULL DEFAULT 0,
+                cancelled_at TEXT,
+                archived INTEGER NOT NULL DEFAULT 0,
+                archived_at TEXT
+            );
+
+            INSERT INTO tasks_new (
+                id, parent_id, description, context, result, priority, completed,
+                completed_at, created_at, updated_at, started_at, cancelled,
+                cancelled_at, archived, archived_at
+            )
+            SELECT
+                id, parent_id, description, context, result, priority, completed,
+                completed_at, created_at, updated_at, started_at, cancelled,
+                cancelled_at, archived, archived_at
+            FROM tasks;
+
+            DROP TABLE tasks;
+            ALTER TABLE tasks_new RENAME TO tasks;
+
+            CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
+            CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+            CREATE INDEX IF NOT EXISTS idx_tasks_cancelled ON tasks(cancelled);
+            CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived);
+            COMMIT;
+            "#,
+        )?;
+        conn.pragma_update(None, "user_version", 6)?;
+        version = 6;
     }
 
     // Suppress unused variable warning - version is used for sequential migration chaining

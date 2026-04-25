@@ -9,7 +9,6 @@ use crate::types::{
     CreateTaskInput, InheritedLearnings, LifecycleState, ListTasksFilter, Task, TaskContext,
     UpdateTaskInput,
 };
-use crate::vcs;
 
 const MAX_DEPTH: i32 = 2;
 
@@ -191,7 +190,6 @@ impl<'a> TaskService<'a> {
 
     /// Complete a task with optional learnings that get attached and bubbled to parent.
     /// Learnings are first added to this task, then bubbled to immediate parent (if any).
-    /// This keeps learnings aligned with VCS state - siblings only see learnings after merge.
     pub fn complete_with_learnings(
         &self,
         id: &TaskId,
@@ -211,10 +209,7 @@ impl<'a> TaskService<'a> {
             learning_repo::add_learning(self.conn, id, content, None)?;
         }
 
-        // Auto-populate commit_sha if VCS is available (Invariant #6)
-        let commit_sha = Self::get_current_commit_sha();
-
-        let mut task = task_repo::complete_task(self.conn, id, result, commit_sha.as_deref())?;
+        let mut task = task_repo::complete_task(self.conn, id, result)?;
 
         // NOTE: Dependency edges are preserved on completion.
         // Readiness is computed from completion state (blocker.completed), not edge removal.
@@ -228,13 +223,6 @@ impl<'a> TaskService<'a> {
         task.depth = Some(self.get_depth(id)?);
         task.effectively_blocked = self.is_effectively_blocked(&task)?;
         Ok(task)
-    }
-
-    fn get_current_commit_sha() -> Option<String> {
-        // Try to get VCS backend from current directory
-        let cwd = std::env::current_dir().ok()?;
-        let backend = vcs::get_backend(&cwd).ok()?;
-        backend.current_commit_id().ok()
     }
 
     pub fn reopen(&self, id: &TaskId) -> Result<Task> {
@@ -1092,36 +1080,6 @@ mod tests {
 
         assert!(completed.completed);
         assert_eq!(completed.result, Some("Done".to_string()));
-        // commit_sha might be None if no VCS is available, or Some if running in a repo
-        // We just verify the operation succeeds
-    }
-
-    #[test]
-    fn test_complete_task_captures_commit_sha() {
-        // This test only verifies the structure - actual commit SHA capture
-        // depends on whether the test runs in a VCS repository
-        let conn = setup_db();
-        let service = TaskService::new(&conn);
-
-        let task = service
-            .create(&CreateTaskInput {
-                description: "Test task".to_string(),
-                context: Some("Test context".to_string()),
-                parent_id: None,
-                priority: None,
-                blocked_by: vec![],
-            })
-            .unwrap();
-
-        // Verify commit_sha is initially None
-        assert_eq!(task.commit_sha, None);
-
-        let completed = service.complete(&task.id, Some("Done")).unwrap();
-
-        assert!(completed.completed);
-        // If we're in a VCS repo (jj or git), commit_sha should be populated
-        // If not, it will be None - both are valid outcomes
-        // The key is that the operation succeeds without error
     }
 
     // =========================================================================

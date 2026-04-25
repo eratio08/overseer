@@ -521,14 +521,6 @@ export function TaskDetail({ task, onDeleted }: TaskDetailProps) {
           </div>
         )}
 
-        {task.commitSha && (
-          <div className={container()}>
-            <dt className={label()}>Commit</dt>
-            <dd>
-              <code className="font-mono text-xs text-text-muted">{task.commitSha}</code>
-            </dd>
-          </div>
-        )}
       </dl>
 
       {/* Action buttons footer */}
