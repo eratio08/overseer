@@ -14,14 +14,18 @@ import { dirname, join } from "node:path";
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkgJson = JSON.parse(
+  readFileSync(join(dirname(__dirname), "package.json"), "utf8")
+);
+const packageName = pkgJson.name;
 
 const PLATFORMS = {
-  "darwin-arm64": "@dmmulroy/overseer-darwin-arm64",
-  "darwin-x64": "@dmmulroy/overseer-darwin-x64",
-  "linux-arm64": "@dmmulroy/overseer-linux-arm64",
-  "linux-x64": "@dmmulroy/overseer-linux-x64",
-  "linux-arm64-musl": "@dmmulroy/overseer-linux-arm64-musl",
-  "linux-x64-musl": "@dmmulroy/overseer-linux-x64-musl",
+  "darwin-arm64": `${packageName}-darwin-arm64`,
+  "darwin-x64": `${packageName}-darwin-x64`,
+  "linux-arm64": `${packageName}-linux-arm64`,
+  "linux-x64": `${packageName}-linux-x64`,
+  "linux-arm64-musl": `${packageName}-linux-arm64-musl`,
+  "linux-x64-musl": `${packageName}-linux-x64-musl`,
 };
 
 function isMusl() {
@@ -53,7 +57,7 @@ function getBinaryPath() {
   if (!pkg) {
     console.error(`Unsupported platform: ${key}`);
     console.error("Your platform is not supported. Please open an issue at:");
-    console.error("  https://github.com/dmmulroy/overseer/issues");
+    console.error(`  ${pkgJson.repository.url.replace("git+", "").replace(".git", "")}/issues`);
     process.exit(1);
   }
 
@@ -64,7 +68,7 @@ function getBinaryPath() {
     console.error(`Platform package not installed: ${pkg}`);
     console.error(`\nTry one of:`);
     console.error(`  npm install -g ${pkg}`);
-    console.error(`  npm install -g @dmmulroy/overseer --include=optional`);
+    console.error(`  npm install -g ${packageName} --include=optional`);
     console.error(`\nIf you have npm configured to omit optional deps, check:`);
     console.error(`  npm config get omit`);
     process.exit(1);

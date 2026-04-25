@@ -29,11 +29,15 @@ const platforms = JSON.parse(
   readFileSync(join(__dirname, "platforms.json"), "utf8")
 );
 
+const mainPackagePath = join(__dirname, "..", "overseer", "package.json");
+const mainPackageName = JSON.parse(readFileSync(mainPackagePath, "utf8")).name;
+const platformPackagePrefix = `${mainPackageName}-`;
+
 // All packages to update
 const packages = [
   join(__dirname, "..", "..", "host", "package.json"),
   join(__dirname, "..", "..", "ui", "package.json"),
-  join(__dirname, "..", "overseer", "package.json"),
+  mainPackagePath,
   ...Object.keys(platforms).map((p) =>
     join(__dirname, "..", `overseer-${p}`, "package.json")
   ),
@@ -53,7 +57,7 @@ for (const pkgPath of packages) {
   // Update optionalDependencies in main package
   if (pkg.optionalDependencies) {
     for (const dep of Object.keys(pkg.optionalDependencies)) {
-      if (dep.startsWith("@dmmulroy/overseer-")) {
+      if (dep.startsWith(platformPackagePrefix)) {
         pkg.optionalDependencies[dep] = version;
       }
     }

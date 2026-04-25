@@ -19,6 +19,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
+  NPM_SCOPE: eratio08
 
 jobs:
   validate:
@@ -229,9 +230,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64 linux-arm64-musl linux-x64-musl; do
-            echo "Publishing @dmmulroy/overseer-$platform..."
+            echo "Publishing @${NPM_SCOPE}/overseer-$platform..."
             npm publish ./npm/overseer-$platform --access public --provenance || {
-              if npm view "@dmmulroy/overseer-$platform@${{ needs.validate.outputs.version }}" > /dev/null 2>&1; then
+              if npm view "@${NPM_SCOPE}/overseer-$platform@${{ needs.validate.outputs.version }}" > /dev/null 2>&1; then
                 echo "Version already published, skipping"
               else
                 exit 1
@@ -243,7 +244,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "Publishing @dmmulroy/overseer..."
+          echo "Publishing @${NPM_SCOPE}/overseer..."
           npm publish ./npm/overseer --access public --provenance
 
   summary:
@@ -261,7 +262,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Install" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "npm install -g @dmmulroy/overseer" >> $GITHUB_STEP_SUMMARY
+          echo "npm install -g @${NPM_SCOPE}/overseer" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Usage" >> $GITHUB_STEP_SUMMARY

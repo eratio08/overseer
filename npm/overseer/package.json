@@ -1,5 +1,5 @@
 {
-  "name": "@dmmulroy/overseer",
+  "name": "@eratio08/overseer",
   "version": "0.11.0",
   "description": "Task orchestration CLI for AI coding agents",
   "type": "module",
@@ -15,12 +15,12 @@
     "postinstall": "node ./bin/postinstall.mjs"
   },
   "optionalDependencies": {
-    "@dmmulroy/overseer-darwin-arm64": "0.11.0",
-    "@dmmulroy/overseer-darwin-x64": "0.11.0",
-    "@dmmulroy/overseer-linux-arm64": "0.11.0",
-    "@dmmulroy/overseer-linux-x64": "0.11.0",
-    "@dmmulroy/overseer-linux-arm64-musl": "0.11.0",
-    "@dmmulroy/overseer-linux-x64-musl": "0.11.0"
+    "@eratio08/overseer-darwin-arm64": "0.11.0",
+    "@eratio08/overseer-darwin-x64": "0.11.0",
+    "@eratio08/overseer-linux-arm64": "0.11.0",
+    "@eratio08/overseer-linux-x64": "0.11.0",
+    "@eratio08/overseer-linux-arm64-musl": "0.11.0",
+    "@eratio08/overseer-linux-x64-musl": "0.11.0"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
@@ -37,7 +37,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dmmulroy/overseer.git"
+    "url": "git+https://github.com/eratio08/overseer.git"
   },
   "keywords": [
     "mcp",

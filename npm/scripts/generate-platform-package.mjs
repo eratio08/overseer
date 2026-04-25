@@ -32,8 +32,12 @@ if (!config) {
 const pkgDir = join(__dirname, "..", `overseer-${platform}`);
 mkdirSync(pkgDir, { recursive: true });
 
+const mainPkg = JSON.parse(
+  readFileSync(join(__dirname, "..", "overseer", "package.json"), "utf8")
+);
+
 const pkg = {
-  name: `@dmmulroy/overseer-${platform}`,
+  name: `${mainPkg.name}-${platform}`,
   version,
   description: `Overseer CLI binary for ${platform}`,
   files: ["os", "postinstall.js"],
@@ -48,10 +52,7 @@ const pkg = {
     access: "public",
     provenance: true,
   },
-  repository: {
-    type: "git",
-    url: "git+https://github.com/dmmulroy/overseer.git",
-  },
+  repository: mainPkg.repository,
   license: "MIT",
 };
 

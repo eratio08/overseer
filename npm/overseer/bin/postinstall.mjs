@@ -15,14 +15,16 @@ import { readFileSync, existsSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const pkgRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const pkgJson = JSON.parse(readFileSync(join(pkgRoot, "package.json"), "utf8"));
+const packageName = pkgJson.name;
 
 const PLATFORMS = {
-  "darwin-arm64": "@dmmulroy/overseer-darwin-arm64",
-  "darwin-x64": "@dmmulroy/overseer-darwin-x64",
-  "linux-arm64": "@dmmulroy/overseer-linux-arm64",
-  "linux-x64": "@dmmulroy/overseer-linux-x64",
-  "linux-arm64-musl": "@dmmulroy/overseer-linux-arm64-musl",
-  "linux-x64-musl": "@dmmulroy/overseer-linux-x64-musl",
+  "darwin-arm64": `${packageName}-darwin-arm64`,
+  "darwin-x64": `${packageName}-darwin-x64`,
+  "linux-arm64": `${packageName}-linux-arm64`,
+  "linux-x64": `${packageName}-linux-x64`,
+  "linux-arm64-musl": `${packageName}-linux-arm64-musl`,
+  "linux-x64-musl": `${packageName}-linux-x64-musl`,
 };
 
 function isMusl() {
@@ -61,9 +63,6 @@ function ensureInstalled() {
     // Platform package not found, try to install it
   }
 
-  const pkgJson = JSON.parse(
-    readFileSync(join(pkgRoot, "package.json"), "utf8")
-  );
   const version = pkgJson.version;
   const ua = env.npm_config_user_agent || "";
   const isNpm = ua.includes("npm/");
@@ -98,7 +97,7 @@ function ensureInstalled() {
     console.error(`\n   If you have npm configured to omit optional deps, try:`);
     console.error(`     npm config set omit ""`);
     console.error(`   or reinstall with:`);
-    console.error(`     npm install -g @dmmulroy/overseer --include=optional\n`);
+    console.error(`     npm install -g ${packageName} --include=optional\n`);
     process.exit(1);
   }
 }
